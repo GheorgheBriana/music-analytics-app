@@ -3,6 +3,14 @@ import './App.css'
 function App() {
     return (
         <div className = "landing-page">
+            <div className = "navbar">
+                <h2 className = "logo"> All Time Wrapped </h2>
+
+                <div className = "nav-links">
+                    <a href = "#">How it works</a>
+                    <a href = "#">Features</a>
+                </div>
+            </div>
             <div className = "hero-section">
                 <h1> All Time Wrapped</h1>
                 <p>Discover your music story anytime, not just once a year.</p>
@@ -45,8 +53,26 @@ function App() {
                     </div>
                 </div>
             </div>
+            <div className = "features-section">
+                <h2>What you can explore</h2>
 
+                <div className = "features-grid">
+                    <div className = "feature-card">
+                        <h3>Top Songs</h3>
+                        <p>See the songs that define your listening habits.</p>
+                    </div>
 
+                    <div className = "feature-card">
+                        <h3>Top Artists</h3>
+                        <p>Discover the artists you return to the most.</p>
+                    </div>
+
+                    <div className = "feature-card">
+                        <h3>Mood Insights</h3>
+                        <p>Explore the emotional vibe of your music preferences.</p>
+                    </div>
+                </div>
+            </div>
         </div>
     )
 }
