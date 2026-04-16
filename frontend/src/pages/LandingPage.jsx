@@ -1,6 +1,6 @@
 import './LandingPage.css'
 
-function LandingPage() {
+function LandingPage({ onSpotifyClick }) {
     return (
         <div className = "landing-page">
             <div className = "navbar">
@@ -19,8 +19,7 @@ function LandingPage() {
                     and upload your listening data manually.
                 </p>
                 <div className = "hero-buttons">
-                    <button className = "login-btn">Continue with Spotify</button>
-                    <button className = "register-btn splash-btn">Use Manual Mode</button>
+                    <button className="login-btn" onClick={onSpotifyClick}>Continue with Spotify</button>                    <button className = "register-btn splash-btn">Use Manual Mode</button>
                 </div>
             </div>
             <div className="access-section">
