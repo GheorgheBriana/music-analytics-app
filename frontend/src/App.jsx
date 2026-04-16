@@ -20,7 +20,7 @@ function App() {
                 </p>
                 <div className = "hero-buttons">
                     <button className = "login-btn">Continue with Spotify</button>
-                    <button className = "register-btn">Use Manual Mode</button>
+                    <button className = "register-btn splash-btn">Use Manual Mode</button>
                 </div>
             </div>
             <div className="access-section">

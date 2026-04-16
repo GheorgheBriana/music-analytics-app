@@ -36,6 +36,12 @@ body {
     background-color: #2a2d38;
     color: white;
     cursor: pointer;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.hero-buttons button:hover {
+    transform: translateY(-3px);
+    opacity: 0.90;
 }
 
 .login-btn {
@@ -59,6 +65,7 @@ body {
     background-color: #171922;
     border-radius: 18px;
     text-align: left;
+    transition: transform 0.25s ease, opacity 0.25s ease;
 }
 
 .access-card h3 {
@@ -95,6 +102,7 @@ body {
     background-color: #171922;
     border-radius: 18px;
     text-align: left;
+    transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .step-card h3 {
@@ -150,6 +158,7 @@ body {
     background-color: #171922;
     border-radius: 18px;
     text-align: left;
+    transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .feature-card h3 {
@@ -161,6 +170,13 @@ body {
     font-size: 16px;
     color: #c7cad6;
     line-height: 1.5;
+}
+
+.access-card:hover,
+.step-card:hover,
+.feature-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
 }
 
 .nav-links a:hover {
