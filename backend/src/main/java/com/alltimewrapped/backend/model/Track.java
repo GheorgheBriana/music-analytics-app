@@ -2,19 +2,25 @@ package com.alltimewrapped.backend.model;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
 @Table(name = "tracks")
 @Getter
 @Setter
+@NoArgsConstructor
 public class Track {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // spotify track id, if the track comes from Spotify
+    // spotify track URI from the exported Spotify history file
+    @Column(name = "spotify_track_uri", unique = true)
+    private String spotifyTrackUri;
+
+    // the name of the song
     @Column(name = "track_name", nullable = false)
     private String trackName;
 
