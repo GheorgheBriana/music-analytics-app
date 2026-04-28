@@ -8,10 +8,9 @@ import com.alltimewrapped.backend.repository.AppUserRepository;
 import com.alltimewrapped.backend.service.ListeningRecordService;
 import com.alltimewrapped.backend.service.TrackService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -45,6 +44,11 @@ class ListeningRecordController {
                 request.getPlatform(),
                 request.getCountryCode()
         );
+    }
+
+    @GetMapping("/user/{userId}")
+    public List<ListeningRecord> getListeningRecordsByUser(@PathVariable Long userId) {
+        return listeningRecordService.getListeningRecordsByUserId(userId);
     }
 
 }

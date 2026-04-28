@@ -10,5 +10,7 @@ public interface ListeningRecordRepository extends JpaRepository<ListeningRecord
 
     List<ListeningRecord> findByUser(AppUser user);
 
+    List<ListeningRecord> findByUserId(Long userId);
+
     List<ListeningRecord> findByUserOrderByPlayedAtDesc(AppUser user);
 }

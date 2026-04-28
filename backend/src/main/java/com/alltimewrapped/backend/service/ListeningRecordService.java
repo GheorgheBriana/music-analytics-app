@@ -5,11 +5,11 @@ import com.alltimewrapped.backend.model.ListeningRecord;
 import com.alltimewrapped.backend.model.ListeningSource;
 import com.alltimewrapped.backend.model.Track;
 import com.alltimewrapped.backend.repository.ListeningRecordRepository;
-import com.alltimewrapped.backend.repository.TrackRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -41,5 +41,9 @@ public class ListeningRecordService {
         listeningRecord.setCountryCode(countryCode);
 
         return listeningRecordRepository.save(listeningRecord);
+    }
+
+    public List<ListeningRecord> getListeningRecordsByUserId(Long userId) {
+        return listeningRecordRepository.findByUserId(userId);
     }
 }
