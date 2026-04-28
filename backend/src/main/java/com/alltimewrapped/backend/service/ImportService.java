@@ -5,9 +5,13 @@ import com.alltimewrapped.backend.model.AppUser;
 import com.alltimewrapped.backend.model.ListeningSource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +39,28 @@ public class ImportService {
                     record.getPlatform(),
                     record.getCountryCode()
             );
+        }
+    }
+
+    public String importSpotifyZip(MultipartFile file) {
+        try (InputStream is = file.getInputStream();
+             ZipInputStream zis = new ZipInputStream(is)) {
+
+            ZipEntry entry;
+
+            while ((entry = zis.getNextEntry()) != null) {
+                String fileName = entry.getName();
+
+                if (fileName.endsWith(".json")) {
+                    System.out.println("Found JSON file: " + fileName);
+                }
+            }
+
+            return "ZIP processed successfully";
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Error processing ZIP";
         }
     }
 }

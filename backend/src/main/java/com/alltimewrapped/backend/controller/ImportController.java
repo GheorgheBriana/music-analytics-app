@@ -6,11 +6,12 @@ import com.alltimewrapped.backend.repository.AppUserRepository;
 import com.alltimewrapped.backend.service.ImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/import")
+@RequestMapping("/import")
 @RequiredArgsConstructor
 public class ImportController {
 
@@ -25,5 +26,10 @@ public class ImportController {
         importService.importRecords(user, records);
 
         return "Imported successfully!";
+    }
+
+    @PostMapping("/spotify-zip")
+    public String importSpotifyZip(@RequestParam("file") MultipartFile file) {
+        return importService.importSpotifyZip(file);
     }
 }
