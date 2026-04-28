@@ -18,18 +18,12 @@ public class ImportController {
     private final ImportService importService;
     private final AppUserRepository appUserRepository;
 
-    @PostMapping
-    public String importData(@RequestBody List<ListeningRecordDTO> records) {
-        AppUser user = appUserRepository.findById(2L)
-                .orElseThrow(() -> new RuntimeException("Test user not found"));
-
-        importService.importRecords(user, records);
-
-        return "Imported successfully!";
-    }
-
     @PostMapping("/spotify-zip")
     public String importSpotifyZip(@RequestParam("file") MultipartFile file) {
-        return importService.importSpotifyZip(file);
+
+        AppUser user = appUserRepository.findById(2L)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return importService.importSpotifyZip(file, user);
     }
 }
