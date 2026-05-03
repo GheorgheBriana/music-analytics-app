@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 public interface ListeningRecordRepository extends JpaRepository<ListeningRecord, Long> {
@@ -18,6 +19,8 @@ public interface ListeningRecordRepository extends JpaRepository<ListeningRecord
     List<ListeningRecord> findByUserId(Long userId);
 
     List<ListeningRecord> findByUserOrderByPlayedAtDesc(AppUser user);
+
+    boolean existsByUserIdAndTrackIdAndPlayedAt(Long userId, Long trackId, OffsetDateTime playedAt);
 
     long countByUserId(Long userId);
 

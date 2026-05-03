@@ -121,7 +121,13 @@ public class ImportService {
                     dto.getMaster_metadata_album_album_name()
             );
 
-            ListeningRecord record = buildRecord(dto, user, track);
+            OffsetDateTime playedAt = OffsetDateTime.parse(dto.getTs());
+
+            if (isDuplicateRecord(user, track, playedAt)) {
+                continue;
+            }
+
+            ListeningRecord record = buildRecord(dto, user, track, playedAt);
             batch.add(record);
 
             if (batch.size() >= BATCH_SIZE) {
@@ -153,12 +159,17 @@ public class ImportService {
     }
 
     // builds a listening record without saving it immediately
-    private ListeningRecord buildRecord(SpotifyListeningDTO dto, AppUser user, Track track) {
+    private ListeningRecord buildRecord(
+            SpotifyListeningDTO dto,
+            AppUser user,
+            Track track,
+            OffsetDateTime playedAt
+    ) {
         ListeningRecord record = new ListeningRecord();
 
         record.setUser(user);
         record.setTrack(track);
-        record.setPlayedAt(OffsetDateTime.parse(dto.getTs()));
+        record.setPlayedAt(playedAt);
         record.setMsPlayed(dto.getMs_played());
         record.setSource(ListeningSource.SPOTIFY);
         record.setSkipped(dto.getSkipped());
@@ -166,5 +177,14 @@ public class ImportService {
         record.setCountryCode(dto.getConn_country());
 
         return record;
+    }
+
+    // checks if the listening record was already imported
+    private boolean isDuplicateRecord(AppUser user, Track track, OffsetDateTime playedAt) {
+        return listeningRecordRepository.existsByUserIdAndTrackIdAndPlayedAt(
+                user.getId(),
+                track.getId(),
+                playedAt
+        );
     }
 }
