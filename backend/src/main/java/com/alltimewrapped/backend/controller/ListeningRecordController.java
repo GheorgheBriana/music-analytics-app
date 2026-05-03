@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/listening-records")
+@RequestMapping("/api/listening-records")
 public class ListeningRecordController {
 
     private final ListeningRecordService listeningRecordService;
