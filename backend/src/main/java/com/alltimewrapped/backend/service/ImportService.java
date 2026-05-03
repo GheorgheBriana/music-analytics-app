@@ -9,6 +9,7 @@ import com.alltimewrapped.backend.repository.AppUserRepository;
 import com.alltimewrapped.backend.repository.ListeningRecordRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonParser;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,9 +34,16 @@ public class ImportService {
     private final AppUserRepository appUserRepository;
     private final ListeningRecordRepository listeningRecordRepository;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = createObjectMapper();
 
     private static final int BATCH_SIZE = 500;
+
+    // creates an object mapper that does not close the ZIP stream automatically
+    private ObjectMapper createObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.getFactory().configure(JsonParser.Feature.AUTO_CLOSE_SOURCE, false);
+        return mapper;
+    }
 
     // imports Spotify listening history from a ZIP file
     @Transactional

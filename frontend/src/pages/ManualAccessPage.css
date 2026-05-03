@@ -60,3 +60,43 @@
     box-shadow: 0 0 22px rgba(124, 92, 255, 0.35);
     background-color: #8f75ff;
 }
+
+.upload-box {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.upload-box input[type="file"] {
+    padding: 12px;
+    border-radius: 12px;
+    background-color: #252837;
+    color: #d9dcff;
+    cursor: pointer;
+}
+
+.file-name {
+    font-size: 15px;
+    color: #c7cad6;
+    margin: 0;
+}
+
+.success-message {
+    color: #7de38d;
+    font-size: 16px;
+    margin: 0;
+}
+
+.error-message {
+    color: #ff7b7b;
+    font-size: 16px;
+    margin: 0;
+}
+
+.manual-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
