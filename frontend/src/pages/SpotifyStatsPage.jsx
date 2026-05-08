@@ -10,11 +10,13 @@ function SpotifyStatsPage({ userId, onBackClick }) {
     const [recentTracks, setRecentTracks] = useState([])
     const [spotifyStatus, setSpotifyStatus] = useState('Loading Spotify data...')
 
-    const [importedStats, setImportedStats] = useState(null)
-
     const [activeSection, setActiveSection] = useState('tracks')
 
     const [timeRange, setTimeRange] = useState('long_term')
+
+    const [spotifyProfile, setSpotifyProfile] = useState(null)
+
+    const [importedStats, setImportedStats] = useState(null)
 
     const activeUserId = localStorage.getItem('userId') || userId
 
@@ -54,6 +56,25 @@ function SpotifyStatsPage({ userId, onBackClick }) {
             }
         }
 
+        const fetchSpotifyProfile = async () => {
+            if (!activeUserId) {
+                return
+            }
+
+            try {
+                const response = await fetch(`http://127.0.0.1:8080/api/spotify-data/${activeUserId}/profile`)
+
+                if (!response.ok) {
+                    return
+                }
+
+                const data = await response.json()
+                setSpotifyProfile(data)
+            } catch (error) {
+                setSpotifyProfile(null)
+            }
+        }
+
         const fetchImportedStats = async () => {
             if (!activeUserId) {
                 return
@@ -75,6 +96,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
         fetchSpotifyData()
         fetchImportedStats()
+        fetchSpotifyProfile()
     }, [activeUserId, timeRange])
 
     const handleFileChange = (event) => {
@@ -141,6 +163,34 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                 <p className="stats-subtitle">
                     Spotify account connected successfully. User ID: {activeUserId}
                 </p>
+
+                {spotifyProfile && (
+                    <div className="profile-card">
+                        <h2>Connected Spotify Account</h2>
+
+                        <div className="profile-grid">
+                            <div>
+                                <span>Username</span>
+                                <strong>{spotifyProfile.username || 'Not available'}</strong>
+                            </div>
+
+                            <div>
+                                <span>Email</span>
+                                <strong>{spotifyProfile.email || 'Not available'}</strong>
+                            </div>
+
+                            <div>
+                                <span>Country</span>
+                                <strong>{spotifyProfile.spotifyCountry || 'Not available'}</strong>
+                            </div>
+
+                            <div>
+                                <span>Account type</span>
+                                <strong>{spotifyProfile.spotifyProduct || 'Not available'}</strong>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {spotifyStatus && (
                     <p className="stats-status">

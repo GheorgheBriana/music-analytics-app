@@ -1,5 +1,6 @@
 package com.alltimewrapped.backend.service;
 
+import com.alltimewrapped.backend.dto.SpotifyProfileResponseDTO;
 import com.alltimewrapped.backend.model.AppUser;
 import com.alltimewrapped.backend.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
@@ -81,4 +82,22 @@ public class SpotifyDataService {
 
         return response.getBody();
     }
+
+    // Returns the Spotify profile information saved for the logged-in user
+    public SpotifyProfileResponseDTO getSpotifyProfile(Long userId) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "User not found with id: " + userId
+                ));
+
+        return new SpotifyProfileResponseDTO(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getSpotifyUserId(),
+                user.getSpotifyCountry(),
+                user.getSpotifyProduct()
+        );
+}
 }

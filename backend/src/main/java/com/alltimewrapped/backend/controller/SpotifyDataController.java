@@ -1,5 +1,6 @@
 package com.alltimewrapped.backend.controller;
 
+import com.alltimewrapped.backend.dto.SpotifyProfileResponseDTO;
 import com.alltimewrapped.backend.service.SpotifyDataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -33,5 +34,11 @@ public class SpotifyDataController {
     @GetMapping("/{userId}/recently-played")
     public Object getRecentlyPlayed(@PathVariable Long userId) {
         return spotifyDataService.getRecentlyPlayed(userId);
+    }
+
+    // Returns the connected Spotify profile saved in the application database
+    @GetMapping("/{userId}/profile")
+    public SpotifyProfileResponseDTO getSpotifyProfile(@PathVariable Long userId) {
+        return spotifyDataService.getSpotifyProfile(userId);
     }
 }
