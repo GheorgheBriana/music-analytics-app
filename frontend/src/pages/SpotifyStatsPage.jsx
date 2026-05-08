@@ -14,6 +14,8 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
     const [activeSection, setActiveSection] = useState('tracks')
 
+    const [timeRange, setTimeRange] = useState('long_term')
+
     const activeUserId = localStorage.getItem('userId') || userId
 
     useEffect(() => {
@@ -25,8 +27,8 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
             try {
                 const [tracksResponse, artistsResponse, recentResponse] = await Promise.all([
-                    fetch(`http://127.0.0.1:8080/api/spotify-data/${activeUserId}/top-tracks?timeRange=long_term`),
-                    fetch(`http://127.0.0.1:8080/api/spotify-data/${activeUserId}/top-artists?timeRange=long_term`),
+                    fetch(`http://127.0.0.1:8080/api/spotify-data/${activeUserId}/top-tracks?timeRange=${timeRange}`),
+                    fetch(`http://127.0.0.1:8080/api/spotify-data/${activeUserId}/top-artists?timeRange=${timeRange}`),
                     fetch(`http://127.0.0.1:8080/api/spotify-data/${activeUserId}/recently-played`)
                 ])
 
@@ -73,7 +75,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
         fetchSpotifyData()
         fetchImportedStats()
-    }, [activeUserId])
+    }, [activeUserId, timeRange])
 
     const handleFileChange = (event) => {
         const file = event.target.files[0]
@@ -188,6 +190,29 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     </div>
                 </div>
 
+                <div className="time-range-tabs">
+                    <button
+                        className={timeRange === 'short_term' ? 'tab-btn active' : 'tab-btn'}
+                        onClick={() => setTimeRange('short_term')}
+                    >
+                        Last 4 weeks
+                    </button>
+
+                    <button
+                        className={timeRange === 'medium_term' ? 'tab-btn active' : 'tab-btn'}
+                        onClick={() => setTimeRange('medium_term')}
+                    >
+                        Last 6 months
+                    </button>
+
+                    <button
+                        className={timeRange === 'long_term' ? 'tab-btn active' : 'tab-btn'}
+                        onClick={() => setTimeRange('long_term')}
+                    >
+                        Long term
+                    </button>
+                </div>
+
                 <div className="section-tabs">
                     <button
                         className={activeSection === 'tracks' ? 'tab-btn active' : 'tab-btn'}
@@ -195,7 +220,6 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     >
                         Show Top Tracks
                     </button>
-
                     <button
                         className={activeSection === 'artists' ? 'tab-btn active' : 'tab-btn'}
                         onClick={() => setActiveSection('artists')}

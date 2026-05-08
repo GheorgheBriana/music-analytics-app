@@ -195,3 +195,12 @@
     color: #ffffff;
     font-weight: 500;
 }
+
+.time-range-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 32px;
+    margin-bottom: 18px;
+}
