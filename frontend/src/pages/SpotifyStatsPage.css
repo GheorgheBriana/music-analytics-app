@@ -28,6 +28,12 @@
     margin-bottom: 40px;
 }
 
+.stats-status {
+    text-align: center;
+    color: #c7c7d1;
+    margin-bottom: 28px;
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -52,6 +58,11 @@
     font-size: 24px;
 }
 
+.stat-box small {
+    color: #a8a8b8;
+    font-size: 13px;
+}
+
 .back-btn {
     background: #292d3d;
     color: white;
@@ -61,8 +72,88 @@
     cursor: pointer;
 }
 
+.section-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 42px;
+    margin-bottom: 28px;
+}
+
+.tab-btn {
+    background: #222533;
+    color: #ffffff;
+    border: 1px solid #34384a;
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.tab-btn:hover {
+    background: #2b3042;
+}
+
+.tab-btn.active {
+    background: #1db954;
+    border-color: #1db954;
+    color: white;
+}
+
+.ranking-section {
+    margin-top: 28px;
+    background: #222533;
+    border-radius: 18px;
+    padding: 28px;
+    text-align: left;
+}
+
+.ranking-section h2 {
+    margin-bottom: 20px;
+    font-size: 26px;
+    text-align: center;
+}
+
+.ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.ranking-item {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    background: #171923;
+    border-radius: 14px;
+    padding: 16px;
+}
+
+.ranking-item span {
+    min-width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #1db954;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+.ranking-item strong {
+    font-size: 17px;
+}
+
+.ranking-item p {
+    color: #a8a8b8;
+    margin: 4px 0 0 0;
+}
+
 .upload-section {
-    margin: 40px 0;
+    margin-top: 28px;
     background: #222533;
     border-radius: 18px;
     padding: 28px;
@@ -79,12 +170,10 @@
     margin-bottom: 20px;
 }
 
-.upload-section {
-    margin: 48px 0 0 0;
-    background: #222533;
-    border-radius: 18px;
-    padding: 28px;
-    text-align: center;
+.upload-section input {
+    display: block;
+    margin: 0 auto 20px auto;
+    color: white;
 }
 
 .upload-btn {

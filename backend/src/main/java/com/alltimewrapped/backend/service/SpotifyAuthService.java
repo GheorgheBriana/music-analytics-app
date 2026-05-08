@@ -37,7 +37,10 @@ public class SpotifyAuthService {
                 .queryParam("client_id", clientId)
                 .queryParam("response_type", "code")
                 .queryParam("redirect_uri", redirectUri)
-                .queryParam("scope", "user-read-email user-read-private")
+                .queryParam(
+                            "scope",
+                            "user-read-email user-read-private user-top-read user-read-recently-played user-library-read playlist-read-private playlist-read-collaborative"
+                )
                 .build()
                 .toUriString();
     }
@@ -48,7 +51,7 @@ public class SpotifyAuthService {
 
         SpotifyUserProfileDTO userProfile = requestSpotifyUserProfile(tokenResponse.getAccessToken());
 
-        return saveOrUpdateSpotifyUser(userProfile);
+        return saveOrUpdateSpotifyUser(userProfile, tokenResponse);
     }
 
     // Exchanges the authorization code for an access token
@@ -99,14 +102,30 @@ public class SpotifyAuthService {
     }
 
     // Saves a new Spotify user or returns the existing one if it was already created
-    private AppUser saveOrUpdateSpotifyUser(SpotifyUserProfileDTO userProfile) {
+    private AppUser saveOrUpdateSpotifyUser(
+            SpotifyUserProfileDTO userProfile,
+            SpotifyTokenResponseDTO tokenResponse
+    ) {
         return appUserRepository.findBySpotifyUserId(userProfile.getId())
+                .map(existingUser -> {
+                    existingUser.setUsername(buildUsername(userProfile));
+                    existingUser.setEmail(userProfile.getEmail());
+                    existingUser.setSpotifyAccessToken(tokenResponse.getAccessToken());
+
+                    if (tokenResponse.getRefreshToken() != null) {
+                        existingUser.setSpotifyRefreshToken(tokenResponse.getRefreshToken());
+                    }
+
+                    return appUserRepository.save(existingUser);
+                })
                 .orElseGet(() -> {
                     AppUser user = new AppUser();
 
                     user.setSpotifyUserId(userProfile.getId());
                     user.setUsername(buildUsername(userProfile));
                     user.setEmail(userProfile.getEmail());
+                    user.setSpotifyAccessToken(tokenResponse.getAccessToken());
+                    user.setSpotifyRefreshToken(tokenResponse.getRefreshToken());
 
                     return appUserRepository.save(user);
                 });

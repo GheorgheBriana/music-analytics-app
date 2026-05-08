@@ -38,6 +38,14 @@ public class AppUser {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    // the current Spotify access token used to call Spotify Web API endpoints
+    @Column(name = "spotify_access_token", length = 2000)
+    private String spotifyAccessToken;
+
+    // the Spotify refresh token used to request a new access token when needed
+    @Column(name = "spotify_refresh_token", length = 2000)
+    private String spotifyRefreshToken;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
