@@ -12,4 +12,8 @@ public class SpotifyUserProfileDTO {
     private String displayName;
 
     private String email;
+
+    private String country;
+
+    private String product;
 }

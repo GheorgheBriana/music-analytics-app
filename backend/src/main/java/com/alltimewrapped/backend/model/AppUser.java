@@ -38,6 +38,14 @@ public class AppUser {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    // the country associated with the Spotify account
+    @Column(name = "spotify_country", length = 10)
+    private String spotifyCountry;
+
+    // the Spotify account type, for example free or premium
+    @Column(name = "spotify_product", length = 50)
+    private String spotifyProduct;
+
     // the current Spotify access token used to call Spotify Web API endpoints
     @Column(name = "spotify_access_token", length = 2000)
     private String spotifyAccessToken;

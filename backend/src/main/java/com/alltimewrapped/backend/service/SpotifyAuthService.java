@@ -110,7 +110,9 @@ public class SpotifyAuthService {
                 .map(existingUser -> {
                     existingUser.setUsername(buildUsername(userProfile));
                     existingUser.setEmail(userProfile.getEmail());
-                    existingUser.setSpotifyAccessToken(tokenResponse.getAccessToken());
+                    existingUser.setSpotifyCountry(userProfile.getCountry());
+                    existingUser.setSpotifyProduct(userProfile.getProduct()); 
+                    existingUser.setSpotifyAccessToken(tokenResponse.getAccessToken());  
 
                     if (tokenResponse.getRefreshToken() != null) {
                         existingUser.setSpotifyRefreshToken(tokenResponse.getRefreshToken());
@@ -124,6 +126,8 @@ public class SpotifyAuthService {
                     user.setSpotifyUserId(userProfile.getId());
                     user.setUsername(buildUsername(userProfile));
                     user.setEmail(userProfile.getEmail());
+                    user.setSpotifyCountry(userProfile.getCountry());
+                    user.setSpotifyProduct(userProfile.getProduct());
                     user.setSpotifyAccessToken(tokenResponse.getAccessToken());
                     user.setSpotifyRefreshToken(tokenResponse.getRefreshToken());
 
