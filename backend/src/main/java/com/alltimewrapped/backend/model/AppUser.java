@@ -18,16 +18,20 @@ public class AppUser {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // the username chosen by the user
+    // the unique Spotify account id used to identify users who log in with Spotify
+    @Column(name = "spotify_user_id", unique = true, length = 100)
+    private String spotifyUserId;
+
+    // the username displayed inside the application
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
-    // the email used for login and communication
-    @Column(nullable = false, unique = true, length = 120)
+    // the email associated with the user account, when Spotify provides it
+    @Column(unique = true, length = 120)
     private String email;
 
-    // the encrypted password saved in the database
-    @Column(name = "password_hash", nullable = false)
+    // the encrypted password saved for users who register with email and password
+    @Column(name = "password_hash")
     private String passwordHash;
 
     // the date when the account was created
