@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,7 +35,7 @@ public class StatsService {
 
     // builds the main statistics response for one user
     @Transactional(readOnly = true)
-    public UserStatsResponse getUserStats(Long userId) {
+    public UserStatsResponse getUserStats(Long userId, LocalDate from, LocalDate to) {
         if (!appUserRepository.existsById(userId)) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
@@ -40,40 +43,45 @@ public class StatsService {
             );
         }
 
-        // counts all imported listening records for this user
+        validateDateRange(from, to);
+
+        if (from == null && to == null) {
+            return buildAllTimeStats(userId);
+        }
+
+        OffsetDateTime fromDateTime = from.atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime toDateTimeExclusive = to.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
+
+        return buildFilteredStats(userId, fromDateTime, toDateTimeExclusive);
+    }
+
+    // builds statistics from the full imported listening history
+    private UserStatsResponse buildAllTimeStats(Long userId) {
         long totalPlays = listeningRecordRepository.countByUserId(userId);
 
-        // gets the total listening time in milliseconds
         long totalMsPlayed = listeningRecordRepository.getTotalMsPlayedByUserId(userId);
 
-        // converts milliseconds to hours for easier display in the dashboard
         double totalHoursPlayed = roundToTwoDecimals(totalMsPlayed / MS_TO_HOURS);
 
-        // gets the top 10 tracks ordered by play count
         List<TopTrackStatsDTO> top10Tracks = listeningRecordRepository.findTopTracksByUserId(
                 userId,
                 PageRequest.of(0, TOP_ITEMS_LIMIT)
         );
 
-        // gets the top 10 artists ordered by play count
         List<TopArtistStatsDTO> top10Artists = listeningRecordRepository.findTopArtistsByUserId(
                 userId,
                 PageRequest.of(0, TOP_ITEMS_LIMIT)
         );
 
-        // gets yearly listening activity for timeline analysis
         List<ListeningActivityByYearDTO> listeningActivityByYear =
                 listeningRecordRepository.findListeningActivityByYear(userId);
 
-        // gets monthly listening activity for more detailed charts
         List<ListeningActivityByMonthDTO> listeningActivityByMonth =
                 listeningRecordRepository.findListeningActivityByMonth(userId);
 
-        // gets all artists grouped by year, ordered by year and play count
         List<TopArtistByYearDTO> allArtistsByYear =
                 listeningRecordRepository.findTopArtistsByYear(userId);
 
-        // keeps only the top artists for each year to avoid returning a very large response
         List<TopArtistByYearDTO> topArtistsByYear = keepTopArtistsPerYear(allArtistsByYear);
 
         return new UserStatsResponse(
@@ -86,6 +94,92 @@ public class StatsService {
                 listeningActivityByMonth,
                 topArtistsByYear
         );
+    }
+
+    // builds statistics only for the selected date range
+    private UserStatsResponse buildFilteredStats(
+            Long userId,
+            OffsetDateTime fromDateTime,
+            OffsetDateTime toDateTimeExclusive
+    ) {
+        long totalPlays = listeningRecordRepository.countByUserIdAndPlayedAtGreaterThanEqualAndPlayedAtLessThan(
+                userId,
+                fromDateTime,
+                toDateTimeExclusive
+        );
+
+        long totalMsPlayed = listeningRecordRepository.getTotalMsPlayedByUserIdBetween(
+                userId,
+                fromDateTime,
+                toDateTimeExclusive
+        );
+
+        double totalHoursPlayed = roundToTwoDecimals(totalMsPlayed / MS_TO_HOURS);
+
+        List<TopTrackStatsDTO> top10Tracks = listeningRecordRepository.findTopTracksByUserIdBetween(
+                userId,
+                fromDateTime,
+                toDateTimeExclusive,
+                PageRequest.of(0, TOP_ITEMS_LIMIT)
+        );
+
+        List<TopArtistStatsDTO> top10Artists = listeningRecordRepository.findTopArtistsByUserIdBetween(
+                userId,
+                fromDateTime,
+                toDateTimeExclusive,
+                PageRequest.of(0, TOP_ITEMS_LIMIT)
+        );
+
+        List<ListeningActivityByYearDTO> listeningActivityByYear =
+                listeningRecordRepository.findListeningActivityByYearBetween(
+                        userId,
+                        fromDateTime,
+                        toDateTimeExclusive
+                );
+
+        List<ListeningActivityByMonthDTO> listeningActivityByMonth =
+                listeningRecordRepository.findListeningActivityByMonthBetween(
+                        userId,
+                        fromDateTime,
+                        toDateTimeExclusive
+                );
+
+        List<TopArtistByYearDTO> allArtistsByYear =
+                listeningRecordRepository.findTopArtistsByYearBetween(
+                        userId,
+                        fromDateTime,
+                        toDateTimeExclusive
+                );
+
+        List<TopArtistByYearDTO> topArtistsByYear = keepTopArtistsPerYear(allArtistsByYear);
+
+        return new UserStatsResponse(
+                totalPlays,
+                totalMsPlayed,
+                totalHoursPlayed,
+                top10Tracks,
+                top10Artists,
+                listeningActivityByYear,
+                listeningActivityByMonth,
+                topArtistsByYear
+        );
+    }
+
+    // validates the custom period selected by the user
+    private void validateDateRange(LocalDate from, LocalDate to) {
+        if ((from == null && to != null) || (from != null && to == null)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Both from and to dates must be provided"
+            );
+        }
+
+        if (from != null && from.isAfter(to)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "The from date cannot be after the to date"
+            );
+        }
     }
 
     // keeps only the first top items for each year
