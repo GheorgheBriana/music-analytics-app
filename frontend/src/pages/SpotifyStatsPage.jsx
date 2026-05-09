@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { getUserStats } from '../api/statsApi'
 import './SpotifyStatsPage.css'
 
 function SpotifyStatsPage({ userId, onBackClick }) {
@@ -11,14 +12,34 @@ function SpotifyStatsPage({ userId, onBackClick }) {
     const [spotifyStatus, setSpotifyStatus] = useState('Loading Spotify data...')
 
     const [activeSection, setActiveSection] = useState('tracks')
+    const [activeAllTimeSection, setActiveAllTimeSection] = useState('overview')
 
     const [timeRange, setTimeRange] = useState('long_term')
-
     const [spotifyProfile, setSpotifyProfile] = useState(null)
-
     const [importedStats, setImportedStats] = useState(null)
 
     const activeUserId = localStorage.getItem('userId') || userId
+
+    function formatMinutes(msPlayed) {
+        return Math.round(msPlayed / 1000 / 60)
+    }
+
+    function getMonthName(monthNumber) {
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ]
+
+        return monthNames[monthNumber - 1] || 'Unknown month'
+    }
+
+    function getMaxPlayCount(items) {
+        if (!items || items.length === 0) {
+            return 1
+        }
+
+        return Math.max(...items.map((item) => item.playCount || 0), 1)
+    }
 
     useEffect(() => {
         const fetchSpotifyData = async () => {
@@ -81,13 +102,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
             }
 
             try {
-                const response = await fetch(`http://127.0.0.1:8080/api/stats/user/${activeUserId}`)
-
-                if (!response.ok) {
-                    return
-                }
-
-                const data = await response.json()
+                const data = await getUserStats(activeUserId)
                 setImportedStats(data)
             } catch (error) {
                 setImportedStats(null)
@@ -134,11 +149,13 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                 throw new Error('Import failed')
             }
 
-            const result = await response.text()
-            setUploadStatus(result || 'Spotify history imported successfully.')
+            const result = await response.json()
 
-            const statsResponse = await fetch(`http://127.0.0.1:8080/api/stats/user/${activeUserId}`)
-            const statsData = await statsResponse.json()
+            setUploadStatus(
+                `Import completed: ${result.importedRecords} imported, ${result.duplicateRecords} duplicates, ${result.skippedRecords} skipped.`
+            )
+
+            const statsData = await getUserStats(activeUserId)
             setImportedStats(statsData)
         } catch (error) {
             setUploadStatus('Something went wrong while importing the ZIP file.')
@@ -240,6 +257,209 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     </div>
                 </div>
 
+                {hasImportedHistory && (
+                    <div className="all-time-section">
+                        <div className="all-time-header">
+                            <div>
+                                <h2>All-Time Wrapped</h2>
+                                <p>
+                                    Statistics generated from your imported Spotify listening history.
+                                </p>
+                            </div>
+
+                            <div className="all-time-summary">
+                                <strong>{importedStats.totalPlays}</strong>
+                                <span>total plays</span>
+                            </div>
+                        </div>
+
+                        <div className="all-time-accordion">
+                            <button
+                                className={activeAllTimeSection === 'overview' ? 'accordion-btn active' : 'accordion-btn'}
+                                onClick={() => setActiveAllTimeSection(activeAllTimeSection === 'overview' ? '' : 'overview')}
+                            >
+                                Overview
+                                <span>{activeAllTimeSection === 'overview' ? '−' : '+'}</span>
+                            </button>
+
+                            {activeAllTimeSection === 'overview' && (
+                                <div className="accordion-content">
+                                    <div className="overview-grid">
+                                        <div className="overview-card">
+                                            <span>Total plays</span>
+                                            <strong>{importedStats.totalPlays}</strong>
+                                        </div>
+
+                                        <div className="overview-card">
+                                            <span>Total listening time</span>
+                                            <strong>{importedStats.totalHoursPlayed} hours</strong>
+                                        </div>
+
+                                        <div className="overview-card">
+                                            <span>Top imported artist</span>
+                                            <strong>{importedStats.top10Artists?.[0]?.artistName || 'Not available'}</strong>
+                                        </div>
+
+                                        <div className="overview-card">
+                                            <span>Top imported track</span>
+                                            <strong>{importedStats.top10Tracks?.[0]?.trackName || 'Not available'}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                className={activeAllTimeSection === 'tracks' ? 'accordion-btn active' : 'accordion-btn'}
+                                onClick={() => setActiveAllTimeSection(activeAllTimeSection === 'tracks' ? '' : 'tracks')}
+                            >
+                                Top Imported Tracks
+                                <span>{activeAllTimeSection === 'tracks' ? '−' : '+'}</span>
+                            </button>
+
+                            {activeAllTimeSection === 'tracks' && (
+                                <div className="accordion-content">
+                                    <div className="compact-ranking-list">
+                                        {importedStats.top10Tracks?.map((track, index) => (
+                                            <div className="compact-ranking-item" key={`${track.trackName}-${index}`}>
+                                                <span>{index + 1}</span>
+
+                                                <div>
+                                                    <strong>{track.trackName}</strong>
+                                                    <p>
+                                                        {track.artistName} · {track.playCount} plays · {formatMinutes(track.totalMsPlayed)} min
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                className={activeAllTimeSection === 'artists' ? 'accordion-btn active' : 'accordion-btn'}
+                                onClick={() => setActiveAllTimeSection(activeAllTimeSection === 'artists' ? '' : 'artists')}
+                            >
+                                Top Imported Artists
+                                <span>{activeAllTimeSection === 'artists' ? '−' : '+'}</span>
+                            </button>
+
+                            {activeAllTimeSection === 'artists' && (
+                                <div className="accordion-content">
+                                    <div className="compact-ranking-list">
+                                        {importedStats.top10Artists?.map((artist, index) => (
+                                            <div className="compact-ranking-item" key={`${artist.artistName}-${index}`}>
+                                                <span>{index + 1}</span>
+
+                                                <div>
+                                                    <strong>{artist.artistName}</strong>
+                                                    <p>
+                                                        {artist.playCount} plays · {formatMinutes(artist.totalMsPlayed)} min
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                className={activeAllTimeSection === 'activity' ? 'accordion-btn active' : 'accordion-btn'}
+                                onClick={() => setActiveAllTimeSection(activeAllTimeSection === 'activity' ? '' : 'activity')}
+                            >
+                                Listening Activity
+                                <span>{activeAllTimeSection === 'activity' ? '−' : '+'}</span>
+                            </button>
+
+                            {activeAllTimeSection === 'activity' && (
+                                <div className="accordion-content">
+                                    <div className="all-time-grid">
+                                        <div className="all-time-panel">
+                                            <h3>By Year</h3>
+
+                                            <div className="bar-chart-list">
+                                                {importedStats.listeningActivityByYear?.map((item) => {
+                                                    const maxPlayCount = getMaxPlayCount(importedStats.listeningActivityByYear)
+                                                    const barWidth = `${(item.playCount / maxPlayCount) * 100}%`
+
+                                                    return (
+                                                        <div className="bar-row" key={item.year}>
+                                                            <div className="bar-label">
+                                                                <span>{item.year}</span>
+                                                                <small>{item.playCount} plays</small>
+                                                            </div>
+
+                                                            <div className="bar-track">
+                                                                <div
+                                                                    className="bar-fill"
+                                                                    style={{ width: barWidth }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div className="all-time-panel">
+                                            <h3>By Month</h3>
+
+                                            <div className="bar-chart-list">
+                                                {importedStats.listeningActivityByMonth?.map((item) => {
+                                                    const maxPlayCount = getMaxPlayCount(importedStats.listeningActivityByMonth)
+                                                    const barWidth = `${(item.playCount / maxPlayCount) * 100}%`
+
+                                                    return (
+                                                        <div className="bar-row" key={`${item.year}-${item.month}`}>
+                                                            <div className="bar-label">
+                                                                <span>{getMonthName(item.month)} {item.year}</span>
+                                                                <small>{item.playCount} plays</small>
+                                                            </div>
+
+                                                            <div className="bar-track">
+                                                                <div
+                                                                    className="bar-fill"
+                                                                    style={{ width: barWidth }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                className={activeAllTimeSection === 'evolution' ? 'accordion-btn active' : 'accordion-btn'}
+                                onClick={() => setActiveAllTimeSection(activeAllTimeSection === 'evolution' ? '' : 'evolution')}
+                            >
+                                Top Artists by Year
+                                <span>{activeAllTimeSection === 'evolution' ? '−' : '+'}</span>
+                            </button>
+
+                            {activeAllTimeSection === 'evolution' && (
+                                <div className="accordion-content">
+                                    <div className="compact-ranking-list">
+                                        {importedStats.topArtistsByYear?.slice(0, 10).map((artist, index) => (
+                                            <div className="compact-ranking-item" key={`${artist.year}-${artist.artistName}-${index}`}>
+                                                <span>{artist.year}</span>
+
+                                                <div>
+                                                    <strong>{artist.artistName}</strong>
+                                                    <p>
+                                                        {artist.playCount} plays · {formatMinutes(artist.totalMsPlayed)} min
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 <div className="time-range-tabs">
                     <button
                         className={timeRange === 'short_term' ? 'tab-btn active' : 'tab-btn'}
@@ -270,6 +490,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     >
                         Show Top Tracks
                     </button>
+
                     <button
                         className={activeSection === 'artists' ? 'tab-btn active' : 'tab-btn'}
                         onClick={() => setActiveSection('artists')}
@@ -300,6 +521,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                             {topTracks.map((track, index) => (
                                 <div className="ranking-item" key={`${track.id}-${index}`}>
                                     <span>{index + 1}</span>
+
                                     <div>
                                         <strong>{track.name}</strong>
                                         <p>
@@ -320,6 +542,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                             {topArtists.map((artist, index) => (
                                 <div className="ranking-item" key={`${artist.id}-${index}`}>
                                     <span>{index + 1}</span>
+
                                     <div>
                                         <strong>{artist.name}</strong>
                                         <p>
@@ -342,6 +565,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                             {recentTracks.map((track, index) => (
                                 <div className="ranking-item" key={`${track.id}-${index}`}>
                                     <span>{index + 1}</span>
+
                                     <div>
                                         <strong>{track.name}</strong>
                                         <p>
