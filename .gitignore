@@ -6,3 +6,15 @@ target/
 .vscode/
 .env
 .DS_Store
+
+# Local database files
+backend/data/
+*.mv.db
+*.trace.db
+
+# Local configuration files
+backend/src/main/resources/application-local.properties
+
+# Environment files
+.env
+*.env
