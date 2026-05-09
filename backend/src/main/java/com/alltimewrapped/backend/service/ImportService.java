@@ -1,5 +1,6 @@
 package com.alltimewrapped.backend.service;
 
+import com.alltimewrapped.backend.dto.ImportResultResponse;
 import com.alltimewrapped.backend.dto.SpotifyListeningDTO;
 import com.alltimewrapped.backend.model.AppUser;
 import com.alltimewrapped.backend.model.ListeningRecord;
@@ -47,7 +48,7 @@ public class ImportService {
 
     // imports Spotify listening history from a ZIP file
     @Transactional
-    public String importSpotifyZip(MultipartFile file, Long userId) {
+    public ImportResultResponse importSpotifyZip(MultipartFile file, Long userId) {
 
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -55,7 +56,11 @@ public class ImportService {
                         "User not found with id: " + userId
                 ));
 
-        int importedCount = 0;
+        int processedFiles = 0;
+        int totalRecordsFound = 0;
+        int importedRecords = 0;
+        int duplicateRecords = 0;
+        int skippedRecords = 0;
 
         try (InputStream inputStream = file.getInputStream();
              ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
@@ -68,6 +73,8 @@ public class ImportService {
                 if (isSpotifyAudioHistoryFile(fileName)) {
                     log.info("Processing file: {}", fileName);
 
+                    processedFiles++;
+
                     List<SpotifyListeningDTO> records = objectMapper.readValue(
                             zipInputStream,
                             new TypeReference<List<SpotifyListeningDTO>>() {}
@@ -75,7 +82,13 @@ public class ImportService {
 
                     log.info("Records found in {}: {}", fileName, records.size());
 
-                    importedCount += processRecords(records, user);
+                    totalRecordsFound += records.size();
+
+                    ImportResultResponse fileResult = processRecords(records, user);
+
+                    importedRecords += fileResult.getImportedRecords();
+                    duplicateRecords += fileResult.getDuplicateRecords();
+                    skippedRecords += fileResult.getSkippedRecords();
                 }
 
                 zipInputStream.closeEntry();
@@ -92,9 +105,22 @@ public class ImportService {
             );
         }
 
-        log.info("Import finished. Total imported: {}", importedCount);
+        log.info(
+                "Import finished. Files processed: {}, total records found: {}, imported: {}, duplicates: {}, skipped: {}",
+                processedFiles,
+                totalRecordsFound,
+                importedRecords,
+                duplicateRecords,
+                skippedRecords
+        );
 
-        return "Imported " + importedCount + " records successfully";
+        return new ImportResultResponse(
+                processedFiles,
+                totalRecordsFound,
+                importedRecords,
+                duplicateRecords,
+                skippedRecords
+        );
     }
 
     // checks if the current file is a Spotify audio history JSON file
@@ -103,14 +129,28 @@ public class ImportService {
                 && fileName.endsWith(".json");
     }
 
-    // processes Spotify records and saves them in batches
-    private int processRecords(List<SpotifyListeningDTO> records, AppUser user) {
+    // processes Spotify records and saves valid new records in batches
+    private ImportResultResponse processRecords(List<SpotifyListeningDTO> records, AppUser user) {
+        int importedRecords = 0;
+        int duplicateRecords = 0;
+        int skippedRecords = 0;
+
         List<ListeningRecord> batch = new ArrayList<>();
-        int importedCount = 0;
 
         for (SpotifyListeningDTO dto : records) {
 
+            // Ignore records that cannot be used for music statistics.
             if (shouldSkipRecord(dto)) {
+                skippedRecords++;
+                continue;
+            }
+
+            OffsetDateTime playedAt;
+
+            try {
+                playedAt = OffsetDateTime.parse(dto.getTs());
+            } catch (Exception exception) {
+                skippedRecords++;
                 continue;
             }
 
@@ -121,27 +161,31 @@ public class ImportService {
                     dto.getMaster_metadata_album_album_name()
             );
 
-            OffsetDateTime playedAt = OffsetDateTime.parse(dto.getTs());
-
             if (isDuplicateRecord(user, track, playedAt)) {
+                duplicateRecords++;
                 continue;
             }
 
             ListeningRecord record = buildRecord(dto, user, track, playedAt);
             batch.add(record);
+            importedRecords++;
 
             if (batch.size() >= BATCH_SIZE) {
                 saveBatch(batch);
             }
-
-            importedCount++;
         }
 
         if (!batch.isEmpty()) {
             saveBatch(batch);
         }
 
-        return importedCount;
+        return new ImportResultResponse(
+                0,
+                records.size(),
+                importedRecords,
+                duplicateRecords,
+                skippedRecords
+        );
     }
 
     // skips records that are not useful for music statistics

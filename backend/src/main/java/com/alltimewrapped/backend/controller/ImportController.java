@@ -1,5 +1,6 @@
 package com.alltimewrapped.backend.controller;
 
+import com.alltimewrapped.backend.dto.ImportResultResponse;
 import com.alltimewrapped.backend.service.ImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,11 +15,11 @@ public class ImportController {
     private final ImportService importService;
 
     @PostMapping("/spotify-zip")
-    public ResponseEntity<String> importSpotifyZip(
+    public ResponseEntity<ImportResultResponse> importSpotifyZip(
             @RequestParam("file") MultipartFile file,
             @RequestParam("userId") Long userId
     ) {
-        String result = importService.importSpotifyZip(file, userId);
+        ImportResultResponse result = importService.importSpotifyZip(file, userId);
         return ResponseEntity.ok(result);
     }
 }

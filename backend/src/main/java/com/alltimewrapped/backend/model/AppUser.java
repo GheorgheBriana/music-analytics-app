@@ -31,7 +31,7 @@ public class AppUser {
     private String email;
 
     // the encrypted password saved for users who register with email and password
-    @Column(name = "password_hash")
+    @Column(name = "password_hash", nullable = true)
     private String passwordHash;
 
     // the date when the account was created
