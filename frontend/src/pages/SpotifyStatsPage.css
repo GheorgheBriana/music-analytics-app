@@ -446,4 +446,88 @@
     .stats-page {
         padding: 20px;
     }
+    .date-input-group {
+        grid-template-columns: 1fr;
+    }
+}
+
+.period-label {
+    margin-top: 8px;
+    color: #1db954;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.date-filter-card {
+    margin-bottom: 18px;
+    padding: 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.date-input-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.date-input-group label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: #c7c7d1;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.date-input-group input {
+    background: #171923;
+    color: white;
+    border: 1px solid #34384a;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+}
+
+.date-filter-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.date-filter-actions button {
+    background: #1db954;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 11px 18px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.date-filter-actions button:hover {
+    background: #1ed760;
+}
+
+.date-filter-actions .secondary-filter-btn {
+    background: #222533;
+    border: 1px solid #34384a;
+}
+
+.date-filter-actions .secondary-filter-btn:hover {
+    background: #2b3042;
+}
+
+.date-filter-error {
+    margin-top: 12px;
+    color: #ff8a8a;
+    font-weight: 600;
+}
+
+.empty-stats-message {
+    margin: 0;
+    color: #c7c7d1;
+    font-size: 14px;
 }

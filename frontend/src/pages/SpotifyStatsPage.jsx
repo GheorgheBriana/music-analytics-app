@@ -18,6 +18,11 @@ function SpotifyStatsPage({ userId, onBackClick }) {
     const [spotifyProfile, setSpotifyProfile] = useState(null)
     const [importedStats, setImportedStats] = useState(null)
 
+    const [fromDate, setFromDate] = useState('')
+    const [toDate, setToDate] = useState('')
+    const [statsPeriodLabel, setStatsPeriodLabel] = useState('All time')
+    const [dateFilterError, setDateFilterError] = useState('')
+
     const activeUserId = localStorage.getItem('userId') || userId
 
     function formatMinutes(msPlayed) {
@@ -39,6 +44,15 @@ function SpotifyStatsPage({ userId, onBackClick }) {
         }
 
         return Math.max(...items.map((item) => item.playCount || 0), 1)
+    }
+
+    async function loadImportedStats(from = '', to = '') {
+        if (!activeUserId) {
+            return
+        }
+
+        const data = await getUserStats(activeUserId, from, to)
+        setImportedStats(data)
     }
 
     useEffect(() => {
@@ -97,21 +111,17 @@ function SpotifyStatsPage({ userId, onBackClick }) {
         }
 
         const fetchImportedStats = async () => {
-            if (!activeUserId) {
-                return
-            }
-
             try {
-                const data = await getUserStats(activeUserId)
-                setImportedStats(data)
+                await loadImportedStats()
+                setStatsPeriodLabel('All time')
             } catch (error) {
                 setImportedStats(null)
             }
         }
 
         fetchSpotifyData()
-        fetchImportedStats()
         fetchSpotifyProfile()
+        fetchImportedStats()
     }, [activeUserId, timeRange])
 
     const handleFileChange = (event) => {
@@ -155,10 +165,43 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                 `Import completed: ${result.importedRecords} imported, ${result.duplicateRecords} duplicates, ${result.skippedRecords} skipped.`
             )
 
-            const statsData = await getUserStats(activeUserId)
-            setImportedStats(statsData)
+            await loadImportedStats(fromDate, toDate)
         } catch (error) {
             setUploadStatus('Something went wrong while importing the ZIP file.')
+        }
+    }
+
+    const handleApplyDateFilter = async () => {
+        if (!fromDate || !toDate) {
+            setDateFilterError('Please select both start and end dates.')
+            return
+        }
+
+        if (fromDate > toDate) {
+            setDateFilterError('The start date cannot be after the end date.')
+            return
+        }
+
+        try {
+            setDateFilterError('')
+            await loadImportedStats(fromDate, toDate)
+            setStatsPeriodLabel(`${fromDate} → ${toDate}`)
+            setActiveAllTimeSection('overview')
+        } catch (error) {
+            setDateFilterError('Statistics could not be loaded for this period.')
+        }
+    }
+
+    const handleClearDateFilter = async () => {
+        try {
+            setFromDate('')
+            setToDate('')
+            setDateFilterError('')
+            await loadImportedStats()
+            setStatsPeriodLabel('All time')
+            setActiveAllTimeSection('overview')
+        } catch (error) {
+            setDateFilterError('All-time statistics could not be loaded.')
         }
     }
 
@@ -166,7 +209,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
     const topArtist = topArtists[0]
     const recentTrack = recentTracks[0]
 
-    const hasImportedHistory = importedStats && importedStats.totalPlays > 0
+    const hasImportedStats = importedStats !== null
 
     return (
         <div className="stats-page">
@@ -243,21 +286,21 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     </div>
 
                     <div className="stat-box">
-                        <span className="stat-label">All-time plays</span>
-                        <strong>{hasImportedHistory ? importedStats.totalPlays : 'Requires ZIP import'}</strong>
+                        <span className="stat-label">Imported plays</span>
+                        <strong>{hasImportedStats ? importedStats.totalPlays : 'Requires ZIP import'}</strong>
                     </div>
 
                     <div className="stat-box">
-                        <span className="stat-label">All-time listening time</span>
+                        <span className="stat-label">Imported listening time</span>
                         <strong>
-                            {hasImportedHistory
+                            {hasImportedStats
                                 ? `${importedStats.totalHoursPlayed} hours`
                                 : 'Requires ZIP import'}
                         </strong>
                     </div>
                 </div>
 
-                {hasImportedHistory && (
+                {hasImportedStats && (
                     <div className="all-time-section">
                         <div className="all-time-header">
                             <div>
@@ -265,12 +308,53 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                                 <p>
                                     Statistics generated from your imported Spotify listening history.
                                 </p>
+                                <p className="period-label">
+                                    Current period: {statsPeriodLabel}
+                                </p>
                             </div>
 
                             <div className="all-time-summary">
                                 <strong>{importedStats.totalPlays}</strong>
-                                <span>total plays</span>
+                                <span>plays in period</span>
                             </div>
+                        </div>
+
+                        <div className="date-filter-card">
+                            <div className="date-input-group">
+                                <label>
+                                    From
+                                    <input
+                                        type="date"
+                                        value={fromDate}
+                                        onChange={(event) => setFromDate(event.target.value)}
+                                    />
+                                </label>
+
+                                <label>
+                                    To
+                                    <input
+                                        type="date"
+                                        value={toDate}
+                                        onChange={(event) => setToDate(event.target.value)}
+                                    />
+                                </label>
+                            </div>
+
+                            <div className="date-filter-actions">
+                                <button onClick={handleApplyDateFilter}>
+                                    Apply period
+                                </button>
+
+                                <button className="secondary-filter-btn" onClick={handleClearDateFilter}>
+                                    Clear filter
+                                </button>
+                            </div>
+
+                            {dateFilterError && (
+                                <p className="date-filter-error">
+                                    {dateFilterError}
+                                </p>
+                            )}
                         </div>
 
                         <div className="all-time-accordion">
@@ -297,12 +381,12 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
                                         <div className="overview-card">
                                             <span>Top imported artist</span>
-                                            <strong>{importedStats.top10Artists?.[0]?.artistName || 'Not available'}</strong>
+                                            <strong>{importedStats.top10Artists?.[0]?.artistName || 'No data'}</strong>
                                         </div>
 
                                         <div className="overview-card">
                                             <span>Top imported track</span>
-                                            <strong>{importedStats.top10Tracks?.[0]?.trackName || 'Not available'}</strong>
+                                            <strong>{importedStats.top10Tracks?.[0]?.trackName || 'No data'}</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -318,20 +402,24 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
                             {activeAllTimeSection === 'tracks' && (
                                 <div className="accordion-content">
-                                    <div className="compact-ranking-list">
-                                        {importedStats.top10Tracks?.map((track, index) => (
-                                            <div className="compact-ranking-item" key={`${track.trackName}-${index}`}>
-                                                <span>{index + 1}</span>
+                                    {importedStats.top10Tracks?.length > 0 ? (
+                                        <div className="compact-ranking-list">
+                                            {importedStats.top10Tracks.map((track, index) => (
+                                                <div className="compact-ranking-item" key={`${track.trackName}-${index}`}>
+                                                    <span>{index + 1}</span>
 
-                                                <div>
-                                                    <strong>{track.trackName}</strong>
-                                                    <p>
-                                                        {track.artistName} · {track.playCount} plays · {formatMinutes(track.totalMsPlayed)} min
-                                                    </p>
+                                                    <div>
+                                                        <strong>{track.trackName}</strong>
+                                                        <p>
+                                                            {track.artistName} · {track.playCount} plays · {formatMinutes(track.totalMsPlayed)} min
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="empty-stats-message">No tracks found for this period.</p>
+                                    )}
                                 </div>
                             )}
 
@@ -345,20 +433,24 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
                             {activeAllTimeSection === 'artists' && (
                                 <div className="accordion-content">
-                                    <div className="compact-ranking-list">
-                                        {importedStats.top10Artists?.map((artist, index) => (
-                                            <div className="compact-ranking-item" key={`${artist.artistName}-${index}`}>
-                                                <span>{index + 1}</span>
+                                    {importedStats.top10Artists?.length > 0 ? (
+                                        <div className="compact-ranking-list">
+                                            {importedStats.top10Artists.map((artist, index) => (
+                                                <div className="compact-ranking-item" key={`${artist.artistName}-${index}`}>
+                                                    <span>{index + 1}</span>
 
-                                                <div>
-                                                    <strong>{artist.artistName}</strong>
-                                                    <p>
-                                                        {artist.playCount} plays · {formatMinutes(artist.totalMsPlayed)} min
-                                                    </p>
+                                                    <div>
+                                                        <strong>{artist.artistName}</strong>
+                                                        <p>
+                                                            {artist.playCount} plays · {formatMinutes(artist.totalMsPlayed)} min
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="empty-stats-message">No artists found for this period.</p>
+                                    )}
                                 </div>
                             )}
 
@@ -376,55 +468,63 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                                         <div className="all-time-panel">
                                             <h3>By Year</h3>
 
-                                            <div className="bar-chart-list">
-                                                {importedStats.listeningActivityByYear?.map((item) => {
-                                                    const maxPlayCount = getMaxPlayCount(importedStats.listeningActivityByYear)
-                                                    const barWidth = `${(item.playCount / maxPlayCount) * 100}%`
+                                            {importedStats.listeningActivityByYear?.length > 0 ? (
+                                                <div className="bar-chart-list">
+                                                    {importedStats.listeningActivityByYear.map((item) => {
+                                                        const maxPlayCount = getMaxPlayCount(importedStats.listeningActivityByYear)
+                                                        const barWidth = `${(item.playCount / maxPlayCount) * 100}%`
 
-                                                    return (
-                                                        <div className="bar-row" key={item.year}>
-                                                            <div className="bar-label">
-                                                                <span>{item.year}</span>
-                                                                <small>{item.playCount} plays</small>
-                                                            </div>
+                                                        return (
+                                                            <div className="bar-row" key={item.year}>
+                                                                <div className="bar-label">
+                                                                    <span>{item.year}</span>
+                                                                    <small>{item.playCount} plays</small>
+                                                                </div>
 
-                                                            <div className="bar-track">
-                                                                <div
-                                                                    className="bar-fill"
-                                                                    style={{ width: barWidth }}
-                                                                />
+                                                                <div className="bar-track">
+                                                                    <div
+                                                                        className="bar-fill"
+                                                                        style={{ width: barWidth }}
+                                                                    />
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <p className="empty-stats-message">No yearly activity for this period.</p>
+                                            )}
                                         </div>
 
                                         <div className="all-time-panel">
                                             <h3>By Month</h3>
 
-                                            <div className="bar-chart-list">
-                                                {importedStats.listeningActivityByMonth?.map((item) => {
-                                                    const maxPlayCount = getMaxPlayCount(importedStats.listeningActivityByMonth)
-                                                    const barWidth = `${(item.playCount / maxPlayCount) * 100}%`
+                                            {importedStats.listeningActivityByMonth?.length > 0 ? (
+                                                <div className="bar-chart-list">
+                                                    {importedStats.listeningActivityByMonth.map((item) => {
+                                                        const maxPlayCount = getMaxPlayCount(importedStats.listeningActivityByMonth)
+                                                        const barWidth = `${(item.playCount / maxPlayCount) * 100}%`
 
-                                                    return (
-                                                        <div className="bar-row" key={`${item.year}-${item.month}`}>
-                                                            <div className="bar-label">
-                                                                <span>{getMonthName(item.month)} {item.year}</span>
-                                                                <small>{item.playCount} plays</small>
-                                                            </div>
+                                                        return (
+                                                            <div className="bar-row" key={`${item.year}-${item.month}`}>
+                                                                <div className="bar-label">
+                                                                    <span>{getMonthName(item.month)} {item.year}</span>
+                                                                    <small>{item.playCount} plays</small>
+                                                                </div>
 
-                                                            <div className="bar-track">
-                                                                <div
-                                                                    className="bar-fill"
-                                                                    style={{ width: barWidth }}
-                                                                />
+                                                                <div className="bar-track">
+                                                                    <div
+                                                                        className="bar-fill"
+                                                                        style={{ width: barWidth }}
+                                                                    />
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <p className="empty-stats-message">No monthly activity for this period.</p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -440,20 +540,24 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
                             {activeAllTimeSection === 'evolution' && (
                                 <div className="accordion-content">
-                                    <div className="compact-ranking-list">
-                                        {importedStats.topArtistsByYear?.slice(0, 10).map((artist, index) => (
-                                            <div className="compact-ranking-item" key={`${artist.year}-${artist.artistName}-${index}`}>
-                                                <span>{artist.year}</span>
+                                    {importedStats.topArtistsByYear?.length > 0 ? (
+                                        <div className="compact-ranking-list">
+                                            {importedStats.topArtistsByYear.slice(0, 10).map((artist, index) => (
+                                                <div className="compact-ranking-item" key={`${artist.year}-${artist.artistName}-${index}`}>
+                                                    <span>{artist.year}</span>
 
-                                                <div>
-                                                    <strong>{artist.artistName}</strong>
-                                                    <p>
-                                                        {artist.playCount} plays · {formatMinutes(artist.totalMsPlayed)} min
-                                                    </p>
+                                                    <div>
+                                                        <strong>{artist.artistName}</strong>
+                                                        <p>
+                                                            {artist.playCount} plays · {formatMinutes(artist.totalMsPlayed)} min
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="empty-stats-message">No artist evolution data for this period.</p>
+                                    )}
                                 </div>
                             )}
                         </div>
