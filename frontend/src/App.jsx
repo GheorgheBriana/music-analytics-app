@@ -9,35 +9,56 @@ function App() {
     const userIdFromUrl = params.get('userId')
 
     if (userIdFromUrl) {
-    localStorage.setItem('userId', userIdFromUrl)
-}
+        localStorage.setItem('userId', userIdFromUrl)
+        localStorage.setItem('authType', 'spotify')
+    }
+
+    const storedUserId = localStorage.getItem('userId')
+    const storedAuthType = localStorage.getItem('authType')
 
     const initialPage = window.location.pathname === '/spotify/callback' && userIdFromUrl
         ? 'stats'
-        : 'landing'
+        : storedUserId && storedAuthType
+            ? 'stats'
+            : 'landing'
 
     // the page currently shown
     const [currentPage, setCurrentPage] = useState(initialPage)
 
-    // the logged-in Spotify user id
-    const [userId] = useState(userIdFromUrl)
+    // the current authenticated user id, from Spotify login or manual login
+    const [userId, setUserId] = useState(userIdFromUrl || storedUserId)
 
     const goToLandingPage = () => {
+        localStorage.removeItem('userId')
+        localStorage.removeItem('authType')
+        setUserId(null)
         setCurrentPage('landing')
         window.history.replaceState({}, '', '/')
     }
 
-    // shows the spotify access page
+    const goToStatsPageAfterManualAuth = (manualUserId) => {
+        localStorage.setItem('userId', manualUserId)
+        localStorage.setItem('authType', 'manual')
+        setUserId(manualUserId)
+        setCurrentPage('stats')
+    }
+
+    // shows the Spotify access page
     if (currentPage === 'spotify') {
         return <SpotifyAccessPage onBackClick={goToLandingPage} />
     }
 
-    // shows the manual upload page
+    // shows the manual register/login page
     if (currentPage === 'manual') {
-        return <ManualAccessPage onBackClick={goToLandingPage} />
+        return (
+            <ManualAccessPage
+                onBackClick={goToLandingPage}
+                onAuthSuccess={goToStatsPageAfterManualAuth}
+            />
+        )
     }
 
-    // shows demo statistics after Spotify login
+    // shows the statistics dashboard after Spotify or manual login
     if (currentPage === 'stats') {
         return (
             <SpotifyStatsPage

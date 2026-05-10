@@ -1,6 +1,6 @@
 import './LandingPage.css'
 
-/* receives navigation actions from App.jsx*/
+/* receives navigation actions from App.jsx */
 function LandingPage({ onSpotifyClick, onManualClick }) {
     return (
         <div className="landing-page">
@@ -19,11 +19,10 @@ function LandingPage({ onSpotifyClick, onManualClick }) {
                 <p>Discover your music story anytime, not just once a year.</p>
 
                 <p>
-                    Use your Spotify account for automatic insights, or create an account
-                    and upload your listening data manually.
+                    Connect your Spotify account for live insights, or create a local account
+                    and upload your Spotify listening history ZIP manually.
                 </p>
 
-                {/* main access options */}
                 <div className="hero-buttons">
                     <button className="login-btn" onClick={onSpotifyClick}>
                         Continue with Spotify
@@ -38,12 +37,18 @@ function LandingPage({ onSpotifyClick, onManualClick }) {
             <div className="access-section">
                 <div className="access-card">
                     <h3>Spotify Access</h3>
-                    <p>Connect your Spotify account and get your listening insights automatically.</p>
+                    <p>
+                        Connect your Spotify account to see live Spotify data such as top tracks,
+                        top artists and recently played songs.
+                    </p>
                 </div>
 
                 <div className="access-card">
                     <h3>Manual Access</h3>
-                    <p>Create an account, upload your file, and use the app without Spotify login.</p>
+                    <p>
+                        Create a local account and upload your Spotify ZIP archive without
+                        connecting your Spotify account.
+                    </p>
                 </div>
             </div>
 
@@ -53,17 +58,17 @@ function LandingPage({ onSpotifyClick, onManualClick }) {
                 <div className="steps">
                     <div className="step-card">
                         <h3>1. Choose your access method</h3>
-                        <p>Continue with Spotify or use manual mode.</p>
+                        <p>Continue with Spotify or use manual mode with a local account.</p>
                     </div>
 
                     <div className="step-card">
-                        <h3>2. Import your music data</h3>
-                        <p>Your listening data is loaded automatically or from your uploaded file.</p>
+                        <h3>2. Import your history</h3>
+                        <p>Upload your Spotify extended streaming history ZIP for all-time analytics.</p>
                     </div>
 
                     <div className="step-card">
                         <h3>3. Explore your insights</h3>
-                        <p>See your top songs, artists, genres, and listening patterns.</p>
+                        <p>See your top songs, artists, albums and listening patterns.</p>
                     </div>
                 </div>
             </div>
@@ -83,8 +88,8 @@ function LandingPage({ onSpotifyClick, onManualClick }) {
                     </div>
 
                     <div className="feature-card">
-                        <h3>Mood Insights</h3>
-                        <p>Explore the emotional vibe of your music preferences.</p>
+                        <h3>Top Albums</h3>
+                        <p>Explore the albums that shaped your listening history.</p>
                     </div>
                 </div>
             </div>

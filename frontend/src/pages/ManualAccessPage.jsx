@@ -1,43 +1,86 @@
 import { useState } from 'react'
-import { uploadSpotifyZip } from '../api/importApi'
 import './ManualAccessPage.css'
 
-function ManualAccessPage({ onBackClick }) {
-    const [selectedFile, setSelectedFile] = useState(null)
-    const [importResult, setImportResult] = useState(null)
+function ManualAccessPage({ onBackClick, onAuthSuccess }) {
+    const [mode, setMode] = useState('login')
+    const [username, setUsername] = useState('')
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
     const [error, setError] = useState('')
     const [isLoading, setIsLoading] = useState(false)
 
-    // saves the file selected by the user
-    function handleFileChange(event) {
-        setSelectedFile(event.target.files[0])
-        setImportResult(null)
+    const isRegisterMode = mode === 'register'
+
+    function resetForm(newMode) {
+        setMode(newMode)
+        setUsername('')
+        setEmail('')
+        setPassword('')
         setError('')
     }
 
-    // uploads the selected ZIP file to the backend
-    async function handleUpload() {
-        if (!selectedFile) {
-            setError('Please select a ZIP file first.')
-            return
+    function validateForm() {
+        if (!username.trim()) {
+            setError('Please enter a username.')
+            return false
         }
 
-        const userId = localStorage.getItem('userId')
+        if (isRegisterMode && !email.trim()) {
+            setError('Please enter an email address.')
+            return false
+        }
 
-        if (!userId) {
-            setError('No user is connected. Please connect your Spotify account first.')
+        if (!password.trim()) {
+            setError('Please enter a password.')
+            return false
+        }
+
+        return true
+    }
+
+    async function handleSubmit(event) {
+        event.preventDefault()
+
+        if (!validateForm()) {
             return
         }
 
         setIsLoading(true)
-        setImportResult(null)
         setError('')
 
+        const endpoint = isRegisterMode
+            ? 'http://localhost:8080/api/auth/local/register'
+            : 'http://localhost:8080/api/auth/local/login'
+
+        const requestBody = isRegisterMode
+            ? { username, email, password }
+            : { username, password }
+
         try {
-            const result = await uploadSpotifyZip(selectedFile, userId)
-            setImportResult(result)
-        } catch (err) {
-            setError('The ZIP file could not be imported.')
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            })
+
+            if (!response.ok) {
+                throw new Error('Authentication failed')
+            }
+
+            const data = await response.json()
+
+            localStorage.setItem('userId', data.userId)
+            localStorage.setItem('authType', data.authType)
+
+            onAuthSuccess(data.userId)
+        } catch (error) {
+            setError(
+                isRegisterMode
+                    ? 'The account could not be created. Please try another username or email.'
+                    : 'Invalid username or password.'
+            )
         } finally {
             setIsLoading(false)
         }
@@ -46,73 +89,83 @@ function ManualAccessPage({ onBackClick }) {
     return (
         <div className="manual-page">
             <div className="manual-card">
-                {/* returns to the landing page */}
                 <button className="back-btn" onClick={onBackClick}>
                     Back to landing page
                 </button>
 
-                <h1>Manual Access</h1>
+                <h1>Manual Mode</h1>
 
                 <p>
-                    Upload your Spotify listening history ZIP file and explore
-                    your music data without connecting a Spotify account.
+                    Create a local account or log in to upload your Spotify ZIP archive
+                    without connecting your Spotify account.
                 </p>
 
-                <div className="upload-box">
-                    <input
-                        type="file"
-                        accept=".zip"
-                        onChange={handleFileChange}
-                    />
-
-                    {selectedFile && (
-                        <p className="file-name">
-                            Selected file: {selectedFile.name}
-                        </p>
-                    )}
-
+                <div className="auth-tabs">
                     <button
-                        className="manual-btn"
-                        onClick={handleUpload}
-                        disabled={isLoading}
+                        className={mode === 'login' ? 'auth-tab active' : 'auth-tab'}
+                        onClick={() => resetForm('login')}
                     >
-                        {isLoading ? 'Importing...' : 'Import Spotify ZIP'}
+                        Login
                     </button>
 
-                    {importResult && (
-                        <div className="import-result">
-                            <h2>Import completed</h2>
+                    <button
+                        className={mode === 'register' ? 'auth-tab active' : 'auth-tab'}
+                        onClick={() => resetForm('register')}
+                    >
+                        Register
+                    </button>
+                </div>
 
-                            <div className="import-result-grid">
-                                <div className="import-result-card">
-                                    <span>Processed files</span>
-                                    <strong>{importResult.processedFiles}</strong>
-                                </div>
+                <form className="manual-auth-form" onSubmit={handleSubmit}>
+                    <label>
+                        Username
+                        <input
+                            type="text"
+                            value={username}
+                            onChange={(event) => setUsername(event.target.value)}
+                            placeholder="Enter your username"
+                        />
+                    </label>
 
-                                <div className="import-result-card">
-                                    <span>Total records found</span>
-                                    <strong>{importResult.totalRecordsFound}</strong>
-                                </div>
-
-                                <div className="import-result-card">
-                                    <span>Imported records</span>
-                                    <strong>{importResult.importedRecords}</strong>
-                                </div>
-
-                                <div className="import-result-card">
-                                    <span>Duplicate records</span>
-                                    <strong>{importResult.duplicateRecords}</strong>
-                                </div>
-
-                                <div className="import-result-card">
-                                    <span>Skipped records</span>
-                                    <strong>{importResult.skippedRecords}</strong>
-                                </div>
-                            </div>
-                        </div>
+                    {isRegisterMode && (
+                        <label>
+                            Email
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(event) => setEmail(event.target.value)}
+                                placeholder="Enter your email"
+                            />
+                        </label>
                     )}
 
-                    {error && <p className="error-message">{error}</p>}
+                    <label>
+                        Password
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            placeholder="Enter your password"
+                        />
+                    </label>
+
+                    <button className="manual-btn" type="submit" disabled={isLoading}>
+                        {isLoading
+                            ? 'Please wait...'
+                            : isRegisterMode
+                                ? 'Create account'
+                                : 'Login'}
+                    </button>
+                </form>
+
+                {error && <p className="error-message">{error}</p>}
+
+                <div className="manual-info-box">
+                    <h2>What happens next?</h2>
+                    <p>
+                        After logging in, you will go to your listening dashboard,
+                        where you can upload your Spotify ZIP file and generate your statistics.
+                    </p>
                 </div>
             </div>
         </div>
