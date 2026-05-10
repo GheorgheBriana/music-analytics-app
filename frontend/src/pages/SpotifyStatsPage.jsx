@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getUserStats } from '../api/statsApi'
+import ActivityHeatmap from '../components/ActivityHeatmap'
 import './SpotifyStatsPage.css'
 
 function SpotifyStatsPage({ userId, onBackClick }) {
@@ -18,6 +19,9 @@ function SpotifyStatsPage({ userId, onBackClick }) {
     const [spotifyProfile, setSpotifyProfile] = useState(null)
     const [importedStats, setImportedStats] = useState(null)
 
+    const [dailyActivity, setDailyActivity] = useState([])
+    const [selectedHeatmapYear, setSelectedHeatmapYear] = useState(null)
+
     const [fromDate, setFromDate] = useState('')
     const [toDate, setToDate] = useState('')
     const [statsPeriodLabel, setStatsPeriodLabel] = useState('All time')
@@ -27,7 +31,6 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
     const authType = localStorage.getItem('authType')
     const isSpotifyMode = authType === 'spotify'
-    //const isManualMode = authType === 'manual'
 
     function formatMinutes(msPlayed) {
         return Math.round(msPlayed / 1000 / 60)
@@ -50,13 +53,59 @@ function SpotifyStatsPage({ userId, onBackClick }) {
         return Math.max(...items.map((item) => item.playCount || 0), 1)
     }
 
+    function getAvailableYears(stats) {
+        return stats?.listeningActivityByYear?.map((item) => item.year) || []
+    }
+
+    function getLatestAvailableYear(stats) {
+        const years = getAvailableYears(stats)
+
+        if (years.length === 0) {
+            return new Date().getFullYear()
+        }
+
+        return Math.max(...years)
+    }
+
     async function loadImportedStats(from = '', to = '') {
         if (!activeUserId) {
-            return
+            return null
         }
 
         const data = await getUserStats(activeUserId, from, to)
         setImportedStats(data)
+
+        return data
+    }
+
+    async function loadDailyActivityForYear(year) {
+        if (!activeUserId || !year) {
+            return
+        }
+
+        const from = `${year}-01-01`
+        const to = `${year}-12-31`
+
+        const response = await fetch(
+            `http://localhost:8080/api/stats/user/${activeUserId}/daily-activity?from=${from}&to=${to}`
+        )
+
+        if (!response.ok) {
+            throw new Error('Failed to load daily activity for selected year')
+        }
+
+        const data = await response.json()
+        setDailyActivity(data)
+    }
+
+    async function handleHeatmapYearChange(year) {
+        setSelectedHeatmapYear(year)
+
+        try {
+            await loadDailyActivityForYear(year)
+        } catch (error) {
+            setDailyActivity([])
+        }
     }
 
     useEffect(() => {
@@ -126,10 +175,16 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
         const fetchImportedStats = async () => {
             try {
-                await loadImportedStats()
+                const data = await loadImportedStats()
                 setStatsPeriodLabel('All time')
+
+                const latestYear = getLatestAvailableYear(data)
+
+                setSelectedHeatmapYear(latestYear)
+                await loadDailyActivityForYear(latestYear)
             } catch (error) {
                 setImportedStats(null)
+                setDailyActivity([])
             }
         }
 
@@ -179,7 +234,11 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                 `Import completed: ${result.importedRecords} imported, ${result.duplicateRecords} duplicates, ${result.skippedRecords} skipped.`
             )
 
-            await loadImportedStats(fromDate, toDate)
+            const data = await loadImportedStats(fromDate, toDate)
+            const latestYear = getLatestAvailableYear(data)
+
+            setSelectedHeatmapYear(latestYear)
+            await loadDailyActivityForYear(latestYear)
         } catch (error) {
             setUploadStatus('Something went wrong while importing the ZIP file.')
         }
@@ -198,7 +257,13 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
         try {
             setDateFilterError('')
-            await loadImportedStats(fromDate, toDate)
+
+            const data = await loadImportedStats(fromDate, toDate)
+            const latestYear = getLatestAvailableYear(data)
+
+            setSelectedHeatmapYear(latestYear)
+            await loadDailyActivityForYear(latestYear)
+
             setStatsPeriodLabel(`${fromDate} → ${toDate}`)
             setActiveAllTimeSection('overview')
         } catch (error) {
@@ -211,7 +276,13 @@ function SpotifyStatsPage({ userId, onBackClick }) {
             setFromDate('')
             setToDate('')
             setDateFilterError('')
-            await loadImportedStats()
+
+            const data = await loadImportedStats()
+            const latestYear = getLatestAvailableYear(data)
+
+            setSelectedHeatmapYear(latestYear)
+            await loadDailyActivityForYear(latestYear)
+
             setStatsPeriodLabel('All time')
             setActiveAllTimeSection('overview')
         } catch (error) {
@@ -224,6 +295,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
     const recentTrack = recentTracks[0]
 
     const hasImportedStats = importedStats !== null
+    const availableHeatmapYears = getAvailableYears(importedStats)
 
     return (
         <div className="stats-page">
@@ -414,7 +486,31 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                                             <span>Top imported track</span>
                                             <strong>{importedStats.top10Tracks?.[0]?.trackName || 'No data'}</strong>
                                         </div>
+
+                                        <div className="overview-card">
+                                            <span>Top imported album</span>
+                                            <strong>{importedStats.top10Albums?.[0]?.albumName || 'No data'}</strong>
+                                        </div>
                                     </div>
+                                </div>
+                            )}
+
+                            <button
+                                className={activeAllTimeSection === 'heatmap' ? 'accordion-btn active' : 'accordion-btn'}
+                                onClick={() => setActiveAllTimeSection(activeAllTimeSection === 'heatmap' ? '' : 'heatmap')}
+                            >
+                                Activity Heatmap
+                                <span>{activeAllTimeSection === 'heatmap' ? '−' : '+'}</span>
+                            </button>
+
+                            {activeAllTimeSection === 'heatmap' && (
+                                <div className="accordion-content">
+                                    <ActivityHeatmap
+                                        data={dailyActivity}
+                                        selectedYear={selectedHeatmapYear}
+                                        availableYears={availableHeatmapYears}
+                                        onYearChange={handleHeatmapYearChange}
+                                    />
                                 </div>
                             )}
 

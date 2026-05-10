@@ -1,12 +1,6 @@
 package com.alltimewrapped.backend.service;
 
-import com.alltimewrapped.backend.dto.ListeningActivityByMonthDTO;
-import com.alltimewrapped.backend.dto.ListeningActivityByYearDTO;
-import com.alltimewrapped.backend.dto.TopAlbumStatsDTO;
-import com.alltimewrapped.backend.dto.TopArtistByYearDTO;
-import com.alltimewrapped.backend.dto.TopArtistStatsDTO;
-import com.alltimewrapped.backend.dto.TopTrackStatsDTO;
-import com.alltimewrapped.backend.dto.UserStatsResponse;
+import com.alltimewrapped.backend.dto.*;
 import com.alltimewrapped.backend.repository.AppUserRepository;
 import com.alltimewrapped.backend.repository.ListeningRecordRepository;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +48,38 @@ public class StatsService {
         OffsetDateTime toDateTimeExclusive = to.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
 
         return buildFilteredStats(userId, fromDateTime, toDateTimeExclusive);
+    }
+
+    // builds daily listening activity for the heatmap
+    @Transactional(readOnly = true)
+    public List<DailyActivityDTO> getDailyActivity(Long userId, LocalDate from, LocalDate to) {
+        if (!appUserRepository.existsById(userId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "User not found with id: " + userId
+            );
+        }
+
+        LocalDate today = LocalDate.now();
+
+        LocalDate startDate = from != null
+                ? from
+                : today.minusYears(1);
+
+        LocalDate endDate = to != null
+                ? to
+                : today;
+
+        validateDateRange(startDate, endDate);
+
+        OffsetDateTime fromDateTime = startDate.atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime toDateTimeExclusive = endDate.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
+
+        return listeningRecordRepository.findDailyActivityByUserIdBetween(
+                userId,
+                fromDateTime,
+                toDateTimeExclusive
+        );
     }
 
     // builds statistics from the full imported listening history

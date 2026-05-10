@@ -1,11 +1,6 @@
 package com.alltimewrapped.backend.repository;
 
-import com.alltimewrapped.backend.dto.ListeningActivityByMonthDTO;
-import com.alltimewrapped.backend.dto.ListeningActivityByYearDTO;
-import com.alltimewrapped.backend.dto.TopAlbumStatsDTO;
-import com.alltimewrapped.backend.dto.TopArtistByYearDTO;
-import com.alltimewrapped.backend.dto.TopArtistStatsDTO;
-import com.alltimewrapped.backend.dto.TopTrackStatsDTO;
+import com.alltimewrapped.backend.dto.*;
 import com.alltimewrapped.backend.model.AppUser;
 import com.alltimewrapped.backend.model.ListeningRecord;
 import org.springframework.data.domain.Pageable;
@@ -251,6 +246,28 @@ public interface ListeningRecordRepository extends JpaRepository<ListeningRecord
             ORDER BY YEAR(record.playedAt), MONTH(record.playedAt)
             """)
     List<ListeningActivityByMonthDTO> findListeningActivityByMonthBetween(
+            @Param("userId") Long userId,
+            @Param("fromDateTime") OffsetDateTime fromDateTime,
+            @Param("toDateTimeExclusive") OffsetDateTime toDateTimeExclusive
+    );
+
+    // Groups listening activity by day for the selected period.
+    @Query("""
+            SELECT new com.alltimewrapped.backend.dto.DailyActivityDTO(
+                YEAR(record.playedAt),
+                MONTH(record.playedAt),
+                DAY(record.playedAt),
+                COUNT(record.id),
+                COALESCE(SUM(record.msPlayed), 0L)
+            )
+            FROM ListeningRecord record
+            WHERE record.user.id = :userId
+              AND record.playedAt >= :fromDateTime
+              AND record.playedAt < :toDateTimeExclusive
+            GROUP BY YEAR(record.playedAt), MONTH(record.playedAt), DAY(record.playedAt)
+            ORDER BY YEAR(record.playedAt), MONTH(record.playedAt), DAY(record.playedAt)
+            """)
+    List<DailyActivityDTO> findDailyActivityByUserIdBetween(
             @Param("userId") Long userId,
             @Param("fromDateTime") OffsetDateTime fromDateTime,
             @Param("toDateTimeExclusive") OffsetDateTime toDateTimeExclusive
