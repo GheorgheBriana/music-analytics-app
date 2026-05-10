@@ -11,7 +11,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
     const [recentTracks, setRecentTracks] = useState([])
     const [spotifyStatus, setSpotifyStatus] = useState('Loading Spotify data...')
 
-    const [activeSection, setActiveSection] = useState('tracks')
+    const [activeSection, setActiveSection] = useState('upload')
     const [activeAllTimeSection, setActiveAllTimeSection] = useState('overview')
 
     const [timeRange, setTimeRange] = useState('long_term')
@@ -24,6 +24,10 @@ function SpotifyStatsPage({ userId, onBackClick }) {
     const [dateFilterError, setDateFilterError] = useState('')
 
     const activeUserId = localStorage.getItem('userId') || userId
+
+    const authType = localStorage.getItem('authType')
+    const isSpotifyMode = authType === 'spotify'
+    //const isManualMode = authType === 'manual'
 
     function formatMinutes(msPlayed) {
         return Math.round(msPlayed / 1000 / 60)
@@ -57,6 +61,11 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
     useEffect(() => {
         const fetchSpotifyData = async () => {
+            if (!isSpotifyMode) {
+                setSpotifyStatus('')
+                return
+            }
+
             if (!activeUserId) {
                 setSpotifyStatus('No logged-in user was found.')
                 return
@@ -92,6 +101,11 @@ function SpotifyStatsPage({ userId, onBackClick }) {
         }
 
         const fetchSpotifyProfile = async () => {
+            if (!isSpotifyMode) {
+                setSpotifyProfile(null)
+                return
+            }
+
             if (!activeUserId) {
                 return
             }
@@ -122,7 +136,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
         fetchSpotifyData()
         fetchSpotifyProfile()
         fetchImportedStats()
-    }, [activeUserId, timeRange])
+    }, [activeUserId, timeRange, isSpotifyMode])
 
     const handleFileChange = (event) => {
         const file = event.target.files[0]
@@ -215,16 +229,18 @@ function SpotifyStatsPage({ userId, onBackClick }) {
         <div className="stats-page">
             <div className="stats-card">
                 <button className="back-btn" onClick={onBackClick}>
-                    Back to landing page
+                    Logout
                 </button>
 
-                <h1>Your Spotify Statistics</h1>
+                <h1>{isSpotifyMode ? 'Spotify Listening Dashboard' : 'Manual Listening Dashboard'}</h1>
 
                 <p className="stats-subtitle">
-                    Spotify account connected successfully. User ID: {activeUserId}
+                    {isSpotifyMode
+                        ? `Spotify account connected successfully. User ID: ${activeUserId}`
+                        : `Manual account connected successfully. User ID: ${activeUserId}`}
                 </p>
 
-                {spotifyProfile && (
+                {isSpotifyMode && spotifyProfile && (
                     <div className="profile-card">
                         <h2>Connected Spotify Account</h2>
 
@@ -252,39 +268,49 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     </div>
                 )}
 
-                {spotifyStatus && (
+                {isSpotifyMode && spotifyStatus && (
                     <p className="stats-status">
                         {spotifyStatus}
                     </p>
                 )}
 
+                {isSpotifyMode && (
+                    <>
+                        <h2 className="section-title">Live Spotify Data</h2>
+
+                        <div className="stats-grid">
+                            <div className="stat-box">
+                                <span className="stat-label">Top Spotify track</span>
+                                <strong>{topTrack ? topTrack.name : 'Not available yet'}</strong>
+                                <small>
+                                    {topTrack?.artists?.map((artist) => artist.name).join(', ')}
+                                </small>
+                            </div>
+
+                            <div className="stat-box">
+                                <span className="stat-label">Top Spotify artist</span>
+                                <strong>{topArtist ? topArtist.name : 'Not available yet'}</strong>
+                            </div>
+
+                            <div className="stat-box">
+                                <span className="stat-label">Recently played</span>
+                                <strong>{recentTrack ? recentTrack.name : 'Not available yet'}</strong>
+                                <small>
+                                    {recentTrack?.artists?.map((artist) => artist.name).join(', ')}
+                                </small>
+                            </div>
+
+                            <div className="stat-box">
+                                <span className="stat-label">Main genre</span>
+                                <strong>{topArtist?.genres?.[0] || 'Not available yet'}</strong>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                <h2 className="section-title">Imported History Analytics</h2>
+
                 <div className="stats-grid">
-                    <div className="stat-box">
-                        <span className="stat-label">Top Spotify track</span>
-                        <strong>{topTrack ? topTrack.name : 'Not available yet'}</strong>
-                        <small>
-                            {topTrack?.artists?.map((artist) => artist.name).join(', ')}
-                        </small>
-                    </div>
-
-                    <div className="stat-box">
-                        <span className="stat-label">Top Spotify artist</span>
-                        <strong>{topArtist ? topArtist.name : 'Not available yet'}</strong>
-                    </div>
-
-                    <div className="stat-box">
-                        <span className="stat-label">Recently played</span>
-                        <strong>{recentTrack ? recentTrack.name : 'Not available yet'}</strong>
-                        <small>
-                            {recentTrack?.artists?.map((artist) => artist.name).join(', ')}
-                        </small>
-                    </div>
-
-                    <div className="stat-box">
-                        <span className="stat-label">Main genre</span>
-                        <strong>{topArtist?.genres?.[0] || 'Not available yet'}</strong>
-                    </div>
-
                     <div className="stat-box">
                         <span className="stat-label">Imported plays</span>
                         <strong>{hasImportedStats ? importedStats.totalPlays : 'Requires ZIP import'}</strong>
@@ -304,7 +330,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     <div className="all-time-section">
                         <div className="all-time-header">
                             <div>
-                                <h2>All-Time Wrapped</h2>
+                                <h2>All-Time Wrapped from Imported History</h2>
                                 <p>
                                     Statistics generated from your imported Spotify listening history.
                                 </p>
@@ -595,50 +621,56 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     </div>
                 )}
 
-                <div className="time-range-tabs">
-                    <button
-                        className={timeRange === 'short_term' ? 'tab-btn active' : 'tab-btn'}
-                        onClick={() => setTimeRange('short_term')}
-                    >
-                        Last 4 weeks
-                    </button>
+                {isSpotifyMode && (
+                    <div className="time-range-tabs">
+                        <button
+                            className={timeRange === 'short_term' ? 'tab-btn active' : 'tab-btn'}
+                            onClick={() => setTimeRange('short_term')}
+                        >
+                            Last 4 weeks
+                        </button>
 
-                    <button
-                        className={timeRange === 'medium_term' ? 'tab-btn active' : 'tab-btn'}
-                        onClick={() => setTimeRange('medium_term')}
-                    >
-                        Last 6 months
-                    </button>
+                        <button
+                            className={timeRange === 'medium_term' ? 'tab-btn active' : 'tab-btn'}
+                            onClick={() => setTimeRange('medium_term')}
+                        >
+                            Last 6 months
+                        </button>
 
-                    <button
-                        className={timeRange === 'long_term' ? 'tab-btn active' : 'tab-btn'}
-                        onClick={() => setTimeRange('long_term')}
-                    >
-                        Long term
-                    </button>
-                </div>
+                        <button
+                            className={timeRange === 'long_term' ? 'tab-btn active' : 'tab-btn'}
+                            onClick={() => setTimeRange('long_term')}
+                        >
+                            Long term
+                        </button>
+                    </div>
+                )}
 
                 <div className="section-tabs">
-                    <button
-                        className={activeSection === 'tracks' ? 'tab-btn active' : 'tab-btn'}
-                        onClick={() => setActiveSection('tracks')}
-                    >
-                        Show Top Tracks
-                    </button>
+                    {isSpotifyMode && (
+                        <>
+                            <button
+                                className={activeSection === 'tracks' ? 'tab-btn active' : 'tab-btn'}
+                                onClick={() => setActiveSection('tracks')}
+                            >
+                                Show Top Tracks
+                            </button>
 
-                    <button
-                        className={activeSection === 'artists' ? 'tab-btn active' : 'tab-btn'}
-                        onClick={() => setActiveSection('artists')}
-                    >
-                        Show Top Artists
-                    </button>
+                            <button
+                                className={activeSection === 'artists' ? 'tab-btn active' : 'tab-btn'}
+                                onClick={() => setActiveSection('artists')}
+                            >
+                                Show Top Artists
+                            </button>
 
-                    <button
-                        className={activeSection === 'recent' ? 'tab-btn active' : 'tab-btn'}
-                        onClick={() => setActiveSection('recent')}
-                    >
-                        Show Recently Played
-                    </button>
+                            <button
+                                className={activeSection === 'recent' ? 'tab-btn active' : 'tab-btn'}
+                                onClick={() => setActiveSection('recent')}
+                            >
+                                Show Recently Played
+                            </button>
+                        </>
+                    )}
 
                     <button
                         className={activeSection === 'upload' ? 'tab-btn active' : 'tab-btn'}
@@ -648,7 +680,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     </button>
                 </div>
 
-                {activeSection === 'tracks' && topTracks.length > 0 && (
+                {isSpotifyMode && activeSection === 'tracks' && topTracks.length > 0 && (
                     <div className="ranking-section">
                         <h2>Top Tracks from Spotify</h2>
 
@@ -669,7 +701,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     </div>
                 )}
 
-                {activeSection === 'artists' && topArtists.length > 0 && (
+                {isSpotifyMode && activeSection === 'artists' && topArtists.length > 0 && (
                     <div className="ranking-section">
                         <h2>Top Artists from Spotify</h2>
 
@@ -692,7 +724,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                     </div>
                 )}
 
-                {activeSection === 'recent' && recentTracks.length > 0 && (
+                {isSpotifyMode && activeSection === 'recent' && recentTracks.length > 0 && (
                     <div className="ranking-section">
                         <h2>Recently Played</h2>
 
@@ -718,8 +750,8 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                         <h2>Upload your Spotify history</h2>
 
                         <p>
-                            Spotify login provides recent and top Spotify data. Upload your Spotify ZIP export
-                            to generate all-time statistics, yearly statistics and total listening time.
+                            Upload your Spotify ZIP export to generate all-time statistics,
+                            yearly statistics, top tracks, top artists and top albums.
                         </p>
 
                         <input
