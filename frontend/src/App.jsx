@@ -1,79 +1,118 @@
-import { useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect } from 'react'
+
 import LandingPage from './pages/LandingPage'
 import SpotifyAccessPage from './pages/SpotifyAccessPage'
 import ManualAccessPage from './pages/ManualAccessPage'
-import SpotifyStatsPage from './pages/SpotifyStatsPage'
 
-function App() {
-    const params = new URLSearchParams(window.location.search)
-    const userIdFromUrl = params.get('userId')
+import AppLayout from './pages/app/AppLayout'
+import DashboardPage from './pages/app/DashboardPage'
+import AnalyticsPage from './pages/app/AnalyticsPage'
+import CalendarPage from './pages/app/CalendarPage'
+import SpotifyLivePage from './pages/app/SpotifyLivePage'
+import ProfileImportPage from './pages/app/ProfileImportPage'
 
-    if (userIdFromUrl) {
-        localStorage.setItem('userId', userIdFromUrl)
-        localStorage.setItem('authType', 'spotify')
-    }
+function LandingRoute() {
+    const navigate = useNavigate()
 
-    const storedUserId = localStorage.getItem('userId')
-    const storedAuthType = localStorage.getItem('authType')
-
-    const initialPage = window.location.pathname === '/spotify/callback' && userIdFromUrl
-        ? 'stats'
-        : storedUserId && storedAuthType
-            ? 'stats'
-            : 'landing'
-
-    // the page currently shown
-    const [currentPage, setCurrentPage] = useState(initialPage)
-
-    // the current authenticated user id, from Spotify login or manual login
-    const [userId, setUserId] = useState(userIdFromUrl || storedUserId)
-
-    const goToLandingPage = () => {
-        localStorage.removeItem('userId')
-        localStorage.removeItem('authType')
-        setUserId(null)
-        setCurrentPage('landing')
-        window.history.replaceState({}, '', '/')
-    }
-
-    const goToStatsPageAfterManualAuth = (manualUserId) => {
-        localStorage.setItem('userId', manualUserId)
-        localStorage.setItem('authType', 'manual')
-        setUserId(manualUserId)
-        setCurrentPage('stats')
-    }
-
-    // shows the Spotify access page
-    if (currentPage === 'spotify') {
-        return <SpotifyAccessPage onBackClick={goToLandingPage} />
-    }
-
-    // shows the manual register/login page
-    if (currentPage === 'manual') {
-        return (
-            <ManualAccessPage
-                onBackClick={goToLandingPage}
-                onAuthSuccess={goToStatsPageAfterManualAuth}
-            />
-        )
-    }
-
-    // shows the statistics dashboard after Spotify or manual login
-    if (currentPage === 'stats') {
-        return (
-            <SpotifyStatsPage
-                userId={userId}
-                onBackClick={goToLandingPage}
-            />
-        )
-    }
-
-    // shows the landing page by default
     return (
         <LandingPage
-            onSpotifyClick={() => setCurrentPage('spotify')}
-            onManualClick={() => setCurrentPage('manual')}
+            onSpotifyClick={() => navigate('/spotify-access')}
+            onManualClick={() => navigate('/manual-access')}
         />
+    )
+}
+
+function SpotifyAccessRoute() {
+    const navigate = useNavigate()
+
+    return (
+        <SpotifyAccessPage
+            onBackClick={() => navigate('/')}
+        />
+    )
+}
+
+function ManualAccessRoute() {
+    const navigate = useNavigate()
+
+    return (
+        <ManualAccessPage
+            onBackClick={() => navigate('/')}
+            onAuthSuccess={(manualUserId) => {
+                localStorage.setItem('userId', manualUserId)
+                localStorage.setItem('authType', 'manual')
+                navigate('/app/dashboard')
+            }}
+        />
+    )
+}
+
+function SpotifyCallbackRoute() {
+    const [searchParams] = useSearchParams()
+    const navigate = useNavigate()
+
+    useEffect(() => {
+        const userIdFromUrl = searchParams.get('userId')
+
+        if (userIdFromUrl) {
+            localStorage.setItem('userId', userIdFromUrl)
+            localStorage.setItem('authType', 'spotify')
+            navigate('/app/dashboard', { replace: true })
+            return
+        }
+
+        navigate('/spotify-access', { replace: true })
+    }, [searchParams, navigate])
+
+    return (
+        <div className="stats-page">
+            <div className="stats-card">
+                <p className="stats-subtitle">Connecting your Spotify account...</p>
+            </div>
+        </div>
+    )
+}
+
+function RequireAuth({ children }) {
+    const userId = localStorage.getItem('userId')
+    const authType = localStorage.getItem('authType')
+
+    if (!userId || !authType) {
+        return <Navigate to="/" replace />
+    }
+
+    return children
+}
+
+function App() {
+    return (
+        <BrowserRouter>
+            <Routes>
+                <Route path="/" element={<LandingRoute />} />
+                <Route path="/spotify-access" element={<SpotifyAccessRoute />} />
+                <Route path="/manual-access" element={<ManualAccessRoute />} />
+                <Route path="/spotify/callback" element={<SpotifyCallbackRoute />} />
+
+                <Route
+                    path="/app"
+                    element={
+                        <RequireAuth>
+                            <AppLayout />
+                        </RequireAuth>
+                    }
+                >
+                    <Route index element={<Navigate to="/app/dashboard" replace />} />
+                    <Route path="dashboard" element={<DashboardPage />} />
+                    <Route path="analytics" element={<AnalyticsPage />} />
+                    <Route path="calendar" element={<CalendarPage />} />
+                    <Route path="spotify-live" element={<SpotifyLivePage />} />
+                    <Route path="profile" element={<ProfileImportPage />} />
+                </Route>
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </BrowserRouter>
     )
 }
 

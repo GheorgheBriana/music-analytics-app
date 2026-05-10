@@ -531,3 +531,90 @@
     color: #c7c7d1;
     font-size: 14px;
 }
+/* Refactor additions for the separated stats sections */
+.main-tabs {
+    margin-top: 28px;
+    margin-bottom: 28px;
+}
+
+.dashboard-insight {
+    margin-top: 18px;
+}
+
+.dashboard-insight h3 {
+    margin-bottom: 10px;
+}
+
+.dashboard-insight strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 20px;
+}
+
+.dashboard-insight p {
+    margin: 0;
+    color: #c7c7d1;
+    line-height: 1.5;
+}
+
+.dashboard-actions {
+    margin-top: 20px;
+}
+
+.nested-section {
+    margin-top: 24px;
+}
+
+.logout-action-btn {
+    background: #2d3142;
+}
+
+.logout-action-btn:hover {
+    background: #3a3f55;
+}
+
+.stats-status {
+    text-align: center;
+    color: #c7c7d1;
+    margin: 18px 0;
+}
+
+.section-title {
+    text-align: center;
+    margin-top: 28px;
+    margin-bottom: 18px;
+}
+
+.live-overview-grid {
+    margin-bottom: 24px;
+}
+
+.main-tabs {
+    margin-top: 24px;
+    margin-bottom: 28px;
+}
+
+.main-tabs .tab-btn {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+.app-header h1 {
+    margin-bottom: 8px;
+}
+
+@media (max-width: 850px) {
+    .app-header {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+}

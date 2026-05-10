@@ -2,8 +2,8 @@ import './SpotifyAccessPage.css'
 
 function SpotifyAccessPage({ onBackClick }) {
     const handleSpotifyLogin = () => {
-        window.location.href = "http://127.0.0.1:8080/api/auth/spotify/login";
-    };
+        window.location.href = 'http://127.0.0.1:8080/api/auth/spotify/login'
+    }
 
     return (
         <div className="spotify-page">
