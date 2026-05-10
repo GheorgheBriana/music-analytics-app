@@ -2,6 +2,7 @@ package com.alltimewrapped.backend.service;
 
 import com.alltimewrapped.backend.dto.ListeningActivityByMonthDTO;
 import com.alltimewrapped.backend.dto.ListeningActivityByYearDTO;
+import com.alltimewrapped.backend.dto.TopAlbumStatsDTO;
 import com.alltimewrapped.backend.dto.TopArtistByYearDTO;
 import com.alltimewrapped.backend.dto.TopArtistStatsDTO;
 import com.alltimewrapped.backend.dto.TopTrackStatsDTO;
@@ -73,6 +74,12 @@ public class StatsService {
                 PageRequest.of(0, TOP_ITEMS_LIMIT)
         );
 
+        // loads the most played albums for the all-time view
+        List<TopAlbumStatsDTO> top10Albums = listeningRecordRepository.findTopAlbumsByUserId(
+                userId,
+                PageRequest.of(0, TOP_ITEMS_LIMIT)
+        );
+
         List<ListeningActivityByYearDTO> listeningActivityByYear =
                 listeningRecordRepository.findListeningActivityByYear(userId);
 
@@ -90,6 +97,7 @@ public class StatsService {
                 totalHoursPlayed,
                 top10Tracks,
                 top10Artists,
+                top10Albums,
                 listeningActivityByYear,
                 listeningActivityByMonth,
                 topArtistsByYear
@@ -130,6 +138,14 @@ public class StatsService {
                 PageRequest.of(0, TOP_ITEMS_LIMIT)
         );
 
+        // loads the most played albums for the selected period
+        List<TopAlbumStatsDTO> top10Albums = listeningRecordRepository.findTopAlbumsByUserIdBetween(
+                userId,
+                fromDateTime,
+                toDateTimeExclusive,
+                PageRequest.of(0, TOP_ITEMS_LIMIT)
+        );
+
         List<ListeningActivityByYearDTO> listeningActivityByYear =
                 listeningRecordRepository.findListeningActivityByYearBetween(
                         userId,
@@ -159,6 +175,7 @@ public class StatsService {
                 totalHoursPlayed,
                 top10Tracks,
                 top10Artists,
+                top10Albums,
                 listeningActivityByYear,
                 listeningActivityByMonth,
                 topArtistsByYear

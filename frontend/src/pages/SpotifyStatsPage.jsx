@@ -393,6 +393,37 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                             )}
 
                             <button
+                                className={activeAllTimeSection === 'albums' ? 'accordion-btn active' : 'accordion-btn'}
+                                onClick={() => setActiveAllTimeSection(activeAllTimeSection === 'albums' ? '' : 'albums')}
+                            >
+                                Top Imported Albums
+                                <span>{activeAllTimeSection === 'albums' ? '−' : '+'}</span>
+                            </button>
+
+                            {activeAllTimeSection === 'albums' && (
+                                <div className="accordion-content">
+                                    {importedStats.top10Albums?.length > 0 ? (
+                                        <div className="compact-ranking-list">
+                                            {importedStats.top10Albums.map((album, index) => (
+                                                <div className="compact-ranking-item" key={`${album.albumName}-${album.artistName}-${index}`}>
+                                                    <span>{index + 1}</span>
+
+                                                    <div>
+                                                        <strong>{album.albumName}</strong>
+                                                        <p>
+                                                            {album.artistName} · {album.playCount} plays · {formatMinutes(album.totalMsPlayed)} min
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="empty-stats-message">No albums found for this period.</p>
+                                    )}
+                                </div>
+                            )}
+
+                            <button
                                 className={activeAllTimeSection === 'tracks' ? 'accordion-btn active' : 'accordion-btn'}
                                 onClick={() => setActiveAllTimeSection(activeAllTimeSection === 'tracks' ? '' : 'tracks')}
                             >

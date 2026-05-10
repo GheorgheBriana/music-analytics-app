@@ -18,6 +18,9 @@ public class UserStatsResponse {
     private List<TopTrackStatsDTO> top10Tracks;
     private List<TopArtistStatsDTO> top10Artists;
 
+    // shows the most played albums from the imported listening history
+    private List<TopAlbumStatsDTO> top10Albums;
+
     // shows how listening activity evolved from one year to another
     private List<ListeningActivityByYearDTO> listeningActivityByYear;
 
