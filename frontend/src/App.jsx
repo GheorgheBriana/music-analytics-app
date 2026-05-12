@@ -11,6 +11,7 @@ import AnalyticsPage from './pages/app/AnalyticsPage'
 import CalendarPage from './pages/app/CalendarPage'
 import SpotifyLivePage from './pages/app/SpotifyLivePage'
 import ProfileImportPage from './pages/app/ProfileImportPage'
+import PredictionsPage from './pages/app/PredictionsPage'
 
 function LandingRoute() {
     const navigate = useNavigate()
@@ -107,7 +108,9 @@ function App() {
                     <Route path="analytics" element={<AnalyticsPage />} />
                     <Route path="calendar" element={<CalendarPage />} />
                     <Route path="spotify-live" element={<SpotifyLivePage />} />
+                    <Route path="predictions" element={<PredictionsPage />} />
                     <Route path="profile" element={<ProfileImportPage />} />
+                    
                 </Route>
 
                 <Route path="*" element={<Navigate to="/" replace />} />
