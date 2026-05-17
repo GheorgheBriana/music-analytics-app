@@ -49,6 +49,13 @@ function AppLayout() {
                     </NavLink>
 
                     <NavLink
+                        to="/app/dna"
+                        className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
+                    >
+                        Music DNA
+                    </NavLink>
+
+                    <NavLink
                         to="/app/predictions"
                         className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
                     >

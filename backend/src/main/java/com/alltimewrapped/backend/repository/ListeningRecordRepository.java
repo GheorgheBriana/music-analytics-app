@@ -23,6 +23,9 @@ public interface ListeningRecordRepository extends JpaRepository<ListeningRecord
     // Used during import to avoid saving the same listening event multiple times.
     boolean existsByUserIdAndTrackIdAndPlayedAt(Long userId, Long trackId, OffsetDateTime playedAt);
 
+    // Used by recommender to check if user already listened to an artist
+    boolean existsByUserIdAndTrack_ArtistName(Long userId, String artistName);
+
     // Counts all imported listening records for one user.
     long countByUserId(Long userId);
 

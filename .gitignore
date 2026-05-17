@@ -1,20 +1,33 @@
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+
+# Node / React
 node_modules/
 dist/
 build/
-target/
+
+# IDE
 .idea/
 .vscode/
-.env
+*.iml
+
+# Logs
+*.log
+
+# OS
 .DS_Store
+Thumbs.db
 
-# Local database files
-backend/data/
-*.mv.db
-*.trace.db
-
-# Local configuration files
-backend/src/main/resources/application-local.properties
-
-# Environment files
+# Env files
 .env
-*.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary files
+tmp/
+temp/

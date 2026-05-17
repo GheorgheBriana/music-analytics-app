@@ -1,11 +1,8 @@
 package com.alltimewrapped.backend.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -13,55 +10,42 @@ import java.time.OffsetDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ListeningRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // the user who owns this listening record
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private AppUser user;
 
-    // the track that was listened to
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "track_id", nullable = false)
     private Track track;
 
-    // the moment when the song was played
+    @ManyToOne
+    @JoinColumn(name = "import_batch_id")
+    private ImportBatch importBatch;
+
     @Column(name = "played_at", nullable = false)
     private OffsetDateTime playedAt;
 
-    // how long was the song played, in milliseconds
-    @Column(name = "ms_played", nullable = false)
+    @Column(name = "ms_played")
     private Long msPlayed;
 
-    // the source of the listening data: Spotify or manual upload
     @Enumerated(EnumType.STRING)
-    @Column(name = "source", nullable = false, length = 50)
+    @Column(name = "source")
     private ListeningSource source;
 
-    // shows if the song was skipped before it finished
     @Column(name = "skipped")
     private Boolean skipped;
 
-    // the platform used for listening, example: Android, iOS, Web Player
-    @Column(name = "platform", length = 50)
+    @Column(name = "platform")
     private String platform;
 
-    // the country where the song was played, if available
-    @Column(name = "country_code", length = 10)
+    @Column(name = "country_code")
     private String countryCode;
-
-    // the date when this record was saved in our application
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    public void onCreate() {
-        if(createdAt == null) {
-            createdAt = LocalDateTime.now();
-        }
-    }
 }

@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import com.alltimewrapped.backend.model.Genre;
+import com.alltimewrapped.backend.model.Track;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -24,6 +26,8 @@ public class StatsService {
 
     private final ListeningRecordRepository listeningRecordRepository;
     private final AppUserRepository appUserRepository;
+    private final com.alltimewrapped.backend.repository.TrackRepository trackRepository;
+    private final LastFmService lastFmService;
 
     private static final double MS_TO_HOURS = 3_600_000.0;
     private static final int TOP_ITEMS_LIMIT = 10;
@@ -80,6 +84,80 @@ public class StatsService {
                 fromDateTime,
                 toDateTimeExclusive
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Long> getUserGenreStats(Long userId) {
+        if (!appUserRepository.existsById(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+
+        List<TopArtistStatsDTO> topArtists = listeningRecordRepository.findTopArtistsByUserId(
+                userId,
+                PageRequest.of(0, 500)
+        );
+
+        Map<String, Long> genreCounts = new java.util.HashMap<>();
+
+        for (TopArtistStatsDTO dto : topArtists) {
+            Track track = trackRepository
+                    .findFirstByArtistName(dto.getArtistName())
+                    .orElse(null);
+
+            if (track == null || track.getGenres() == null || track.getGenres().isEmpty()) {
+                continue;
+            }
+
+            for (Genre genreEntity : track.getGenres()) {
+                String genre = genreEntity.getName();
+
+                if (genre == null || genre.isBlank()) {
+                    continue;
+                }
+
+                genre = genre.trim();
+
+                if (genre.equalsIgnoreCase("unknown") || genre.equalsIgnoreCase("error")) {
+                    continue;
+                }
+
+                // Multiply by playCount to give weight to genres listened to more often
+                genreCounts.put(
+                        genre,
+                        genreCounts.getOrDefault(genre, 0L) + dto.getPlayCount()
+                );
+            }
+        }
+
+        // Sort by value descending and limit to top 15
+        return genreCounts.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(15)
+                .collect(java.util.stream.Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (e1, e2) -> e1,
+                        LinkedHashMap::new
+                ));
+    }
+    @Transactional(readOnly = true)
+    public List<String> getRecommendations(Long userId) {
+        Map<String, Long> genreStats = getUserGenreStats(userId);
+        if (genreStats.isEmpty()) return new ArrayList<>();
+
+        List<String> topGenres = genreStats.keySet().stream().limit(3).toList();
+        List<String> recommendations = new ArrayList<>();
+
+        for (String genre : topGenres) {
+            List<String> artists = lastFmService.getTopArtistsByTag(genre);
+            for (String artist : artists) {
+                if (!listeningRecordRepository.existsByUserIdAndTrack_ArtistName(userId, artist)) {
+                    recommendations.add(artist);
+                }
+            }
+        }
+
+        return recommendations.stream().distinct().limit(5).toList();
     }
 
     // builds statistics from the full imported listening history

@@ -1,43 +1,68 @@
 package com.alltimewrapped.backend.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
-@Table(name = "tracks")
+@Table(
+        name = "tracks",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_spotify_track_uri", columnNames = "spotify_track_uri")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Track {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // spotify track URI from the exported Spotify history file
     @Column(name = "spotify_track_uri", unique = true)
     private String spotifyTrackUri;
 
-    // the name of the song
     @Column(name = "track_name", nullable = false)
     private String trackName;
 
-    // artist name
-    @Column(name = "artist_name", nullable = false)
+    // Kept temporarily for compatibility with the existing import/statistics logic.
+    @Column(name = "artist_name")
     private String artistName;
 
-    // album, if available
+    // Kept temporarily for compatibility with the existing import/statistics logic.
     @Column(name = "album_name")
     private String albumName;
 
-    // the duration of the song, in milliseconds
     @Column(name = "duration_ms")
-    private Integer durationMs;
+    private Long durationMs;
 
-    // URL of the album cover page, if available later from Spotify API
     @Column(name = "image_url")
     private String imageUrl;
 
+    @ManyToOne
+    @JoinColumn(name = "album_id")
+    private Album album;
+
+    @ManyToMany
+    @JoinTable(
+            name = "track_artists",
+            joinColumns = @JoinColumn(name = "track_id"),
+            inverseJoinColumns = @JoinColumn(name = "artist_id")
+    )
+    @Builder.Default
+    private Set<Artist> artists = new HashSet<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "track_genres",
+            joinColumns = @JoinColumn(name = "track_id"),
+            inverseJoinColumns = @JoinColumn(name = "genre_id")
+    )
+    @Builder.Default
+    private Set<Genre> genres = new HashSet<>();
 }

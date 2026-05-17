@@ -18,6 +18,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.alltimewrapped.backend.config.RabbitMQConfig;
+import com.alltimewrapped.backend.dto.ImportBatchMessage;
 
 import java.io.InputStream;
 import java.time.OffsetDateTime;
@@ -34,6 +37,7 @@ public class ImportService {
     private final TrackService trackService;
     private final AppUserRepository appUserRepository;
     private final ListeningRecordRepository listeningRecordRepository;
+    private final RabbitTemplate rabbitTemplate;
 
     private final ObjectMapper objectMapper = createObjectMapper();
 
@@ -84,11 +88,14 @@ public class ImportService {
 
                     totalRecordsFound += records.size();
 
-                    ImportResultResponse fileResult = processRecords(records, user);
-
-                    importedRecords += fileResult.getImportedRecords();
-                    duplicateRecords += fileResult.getDuplicateRecords();
-                    skippedRecords += fileResult.getSkippedRecords();
+                    // Send to RabbitMQ in batches
+                    List<List<SpotifyListeningDTO>> batches = createBatches(records, BATCH_SIZE);
+                    int batchIndex = 0;
+                    for (List<SpotifyListeningDTO> batch : batches) {
+                        ImportBatchMessage message = new ImportBatchMessage(userId, batchIndex, batches.size(), batch);
+                        rabbitTemplate.convertAndSend(RabbitMQConfig.IMPORT_QUEUE, message);
+                        batchIndex++;
+                    }
                 }
 
                 zipInputStream.closeEntry();
@@ -117,10 +124,20 @@ public class ImportService {
         return new ImportResultResponse(
                 processedFiles,
                 totalRecordsFound,
-                importedRecords,
-                duplicateRecords,
-                skippedRecords
+                0, // imported will be handled async
+                0,
+                0
         );
+    }
+
+    private List<List<SpotifyListeningDTO>> createBatches(List<SpotifyListeningDTO> list, int batchSize) {
+        List<List<SpotifyListeningDTO>> batches = new ArrayList<>();
+        for (int i = 0; i < list.size(); i += batchSize) {
+            batches.add(new ArrayList<>(
+                    list.subList(i, Math.min(list.size(), i + batchSize)))
+            );
+        }
+        return batches;
     }
 
     // checks if the current file is a Spotify audio history JSON file
@@ -130,7 +147,8 @@ public class ImportService {
     }
 
     // processes Spotify records and saves valid new records in batches
-    private ImportResultResponse processRecords(List<SpotifyListeningDTO> records, AppUser user) {
+    @Transactional
+    public ImportResultResponse processRecords(List<SpotifyListeningDTO> records, AppUser user) {
         int importedRecords = 0;
         int duplicateRecords = 0;
         int skippedRecords = 0;

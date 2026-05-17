@@ -9,6 +9,7 @@ import AppLayout from './pages/app/AppLayout'
 import DashboardPage from './pages/app/DashboardPage'
 import AnalyticsPage from './pages/app/AnalyticsPage'
 import CalendarPage from './pages/app/CalendarPage'
+import MusicDnaPage from './pages/app/MusicDnaPage'
 import SpotifyLivePage from './pages/app/SpotifyLivePage'
 import ProfileImportPage from './pages/app/ProfileImportPage'
 import PredictionsPage from './pages/app/PredictionsPage'
@@ -107,6 +108,7 @@ function App() {
                     <Route path="dashboard" element={<DashboardPage />} />
                     <Route path="analytics" element={<AnalyticsPage />} />
                     <Route path="calendar" element={<CalendarPage />} />
+                    <Route path="dna" element={<MusicDnaPage />} />
                     <Route path="spotify-live" element={<SpotifyLivePage />} />
                     <Route path="predictions" element={<PredictionsPage />} />
                     <Route path="profile" element={<ProfileImportPage />} />

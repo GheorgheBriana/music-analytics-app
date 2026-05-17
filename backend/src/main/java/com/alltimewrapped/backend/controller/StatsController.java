@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/stats")
@@ -49,5 +50,15 @@ public class StatsController {
             LocalDate to
     ) {
         return statsService.getDailyActivity(userId, from, to);
+    }
+
+    @GetMapping("/user/{userId}/genres")
+    public Map<String, Long> getGenres(@PathVariable Long userId) {
+        return statsService.getUserGenreStats(userId);
+    }
+
+    @GetMapping("/user/{userId}/recommendations")
+    public List<String> getRecommendations(@PathVariable Long userId) {
+        return statsService.getRecommendations(userId);
     }
 }

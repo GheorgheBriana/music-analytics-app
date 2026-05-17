@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
+import SockJS from 'sockjs-client'
+import { Client } from '@stomp/stompjs'
 
 function ProfileImportPage() {
     const [selectedFile, setSelectedFile] = useState(null)
     const [uploadStatus, setUploadStatus] = useState('')
     const [spotifyProfile, setSpotifyProfile] = useState(null)
     const [profileLoading, setProfileLoading] = useState(true)
+    const [importProgress, setImportProgress] = useState(0)
+    const [isImporting, setIsImporting] = useState(false)
 
     const activeUserId = localStorage.getItem('userId')
     const authType = localStorage.getItem('authType')
@@ -41,6 +45,39 @@ function ProfileImportPage() {
         loadSpotifyProfile()
     }, [activeUserId, isSpotifyMode])
 
+    useEffect(() => {
+        if (!activeUserId) return;
+
+        const stompClient = new Client({
+            webSocketFactory: () => new SockJS('http://127.0.0.1:8080/ws-import'),
+            onConnect: () => {
+                console.log('Connected to WebSocket');
+                stompClient.subscribe(`/topic/import-progress/${activeUserId}`, (message) => {
+                    const data = JSON.parse(message.body);
+                    setImportProgress(data.progress);
+                    
+                    if (data.status === 'COMPLETED') {
+                        setIsImporting(false);
+                        setUploadStatus('Import completed successfully!');
+                    } else if (data.message) {
+                        setUploadStatus(data.message);
+                    }
+                });
+            },
+            onStompError: (frame) => {
+                console.error('Broker reported error: ' + frame.headers['message']);
+            }
+        });
+
+        stompClient.activate();
+
+        return () => {
+            if (stompClient) {
+                stompClient.deactivate();
+            }
+        };
+    }, [activeUserId]);
+
     function handleFileChange(event) {
         const file = event.target.files[0]
         setSelectedFile(file)
@@ -62,7 +99,9 @@ function ProfileImportPage() {
         formData.append('file', selectedFile)
 
         try {
-            setUploadStatus('Importing your Spotify history...')
+            setUploadStatus('Uploading and queuing your Spotify history...')
+            setIsImporting(true)
+            setImportProgress(0)
 
             const response = await fetch(
                 `http://127.0.0.1:8080/api/import/spotify-zip?userId=${activeUserId}`,
@@ -73,16 +112,13 @@ function ProfileImportPage() {
             )
 
             if (!response.ok) {
-                throw new Error('Import failed')
+                throw new Error('Upload failed')
             }
 
-            const result = await response.json()
-
-            setUploadStatus(
-                `Import completed: ${result.importedRecords} imported, ${result.duplicateRecords} duplicates, ${result.skippedRecords} skipped.`
-            )
+            setUploadStatus('Upload successful! Processing records in background...')
         } catch (error) {
-            setUploadStatus('Something went wrong while importing the ZIP file.')
+            setUploadStatus('Something went wrong while uploading the ZIP file.')
+            setIsImporting(false)
         }
     }
 
@@ -168,9 +204,20 @@ function ProfileImportPage() {
                         Upload Spotify ZIP
                     </button>
 
+                    {isImporting && (
+                        <div style={{ marginTop: '20px', width: '100%', backgroundColor: '#eee', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ 
+                                width: `${importProgress}%`, 
+                                height: '20px', 
+                                backgroundColor: '#1DB954', 
+                                transition: 'width 0.3s ease' 
+                            }}></div>
+                        </div>
+                    )}
+
                     {uploadStatus && (
-                        <p className="upload-status">
-                            {uploadStatus}
+                        <p className="upload-status" style={{ marginTop: '10px' }}>
+                            {uploadStatus} {isImporting && `${importProgress}%`}
                         </p>
                     )}
                 </div>

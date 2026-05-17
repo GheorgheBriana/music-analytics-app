@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import './ActivityHeatmap.css'
 
-function ActivityHeatmap({ data }) {
+function ActivityHeatmap({ data, selectedYear, availableYears, onYearChange }) {
     function buildDateKey(year, month, day) {
         const paddedMonth = String(month).padStart(2, '0')
         const paddedDay = String(day).padStart(2, '0')
@@ -45,14 +45,13 @@ function ActivityHeatmap({ data }) {
         return 'level-4'
     }
 
-    const availableYears = useMemo(() => {
-        const years = [...new Set(data.map((item) => item.year))]
-            .sort((a, b) => b - a)
+    // availableYears and selectedYear are now passed as props, so we don't need to compute them here.
+    // If availableYears is empty/undefined, fallback to current year
+    const safeAvailableYears = availableYears && availableYears.length > 0 
+        ? availableYears 
+        : [new Date().getFullYear()]
 
-        return years.length > 0 ? years : [new Date().getFullYear()]
-    }, [data])
-
-    const [selectedYear, setSelectedYear] = useState(availableYears[0])
+    const safeSelectedYear = selectedYear || safeAvailableYears[0]
 
     const activityByDate = useMemo(() => {
         const map = new Map()
@@ -130,7 +129,7 @@ function ActivityHeatmap({ data }) {
         return ''
     }
 
-    const days = buildYearDays(selectedYear)
+    const days = buildYearDays(safeSelectedYear)
     const weeks = groupDaysByWeek(days)
 
     return (
@@ -145,10 +144,14 @@ function ActivityHeatmap({ data }) {
                     <label>
                         Year
                         <select
-                            value={selectedYear}
-                            onChange={(event) => setSelectedYear(Number(event.target.value))}
+                            value={safeSelectedYear}
+                            onChange={(event) => {
+                                if (onYearChange) {
+                                    onYearChange(Number(event.target.value))
+                                }
+                            }}
                         >
-                            {availableYears.map((year) => (
+                            {safeAvailableYears.map((year) => (
                                 <option key={year} value={year}>
                                     {year}
                                 </option>
