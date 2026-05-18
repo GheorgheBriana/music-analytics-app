@@ -41,6 +41,21 @@ function AppLayout() {
                         Analytics
                     </NavLink>
 
+
+                    <NavLink
+                        to="/app/dw-pipeline"
+                        className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
+                    >
+                        DW Pipeline
+                    </NavLink>
+
+                    <NavLink
+                        to="/app/bi-dashboard"
+                        className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
+                    >
+                        BI Dashboard
+                    </NavLink>
+
                     <NavLink
                         to="/app/calendar"
                         className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}

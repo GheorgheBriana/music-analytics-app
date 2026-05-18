@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface ListeningRecordRepository extends JpaRepository<ListeningRecord, Long> {
 
-    // Basic queries used to load listening records for a specific user.
+    // load listening records for a specific user.
     List<ListeningRecord> findByUser(AppUser user);
 
     List<ListeningRecord> findByUserId(Long userId);
@@ -313,4 +313,20 @@ public interface ListeningRecordRepository extends JpaRepository<ListeningRecord
             @Param("fromDateTime") OffsetDateTime fromDateTime,
             @Param("toDateTimeExclusive") OffsetDateTime toDateTimeExclusive
     );
+        
+        @Query(
+                value = """
+                        SELECT lr.*
+                        FROM listening_records lr
+                        WHERE NOT EXISTS (
+                        SELECT 1
+                        FROM dw_fact_listening_event f
+                        WHERE f.original_listening_record_id = lr.id
+                        )
+                        ORDER BY lr.id
+                        LIMIT :limit
+                        """,
+                nativeQuery = true
+        )
+        List<ListeningRecord> findRecordsNotInWarehouse(@Param("limit") int limit);
 }

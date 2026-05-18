@@ -8,6 +8,8 @@ import ManualAccessPage from './pages/ManualAccessPage'
 import AppLayout from './pages/app/AppLayout'
 import DashboardPage from './pages/app/DashboardPage'
 import AnalyticsPage from './pages/app/AnalyticsPage'
+import AnalyticsPipelinePage from './pages/app/AnalyticsPipelinePage'
+import BIDashboardPage from './pages/app/BIDashboardPage'
 import CalendarPage from './pages/app/CalendarPage'
 import MusicDnaPage from './pages/app/MusicDnaPage'
 import SpotifyLivePage from './pages/app/SpotifyLivePage'
@@ -107,6 +109,8 @@ function App() {
                     <Route index element={<Navigate to="/app/dashboard" replace />} />
                     <Route path="dashboard" element={<DashboardPage />} />
                     <Route path="analytics" element={<AnalyticsPage />} />
+                    <Route path="dw-pipeline" element={<AnalyticsPipelinePage />} />
+                    <Route path="bi-dashboard" element={<BIDashboardPage />} />
                     <Route path="calendar" element={<CalendarPage />} />
                     <Route path="dna" element={<MusicDnaPage />} />
                     <Route path="spotify-live" element={<SpotifyLivePage />} />
