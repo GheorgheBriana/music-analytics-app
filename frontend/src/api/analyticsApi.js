@@ -1,7 +1,18 @@
 const API_BASE_URL = 'http://localhost:8080'
 
+function getUserIdQueryParam() {
+    const userId = localStorage.getItem('userId') || localStorage.getItem('original_user_id')
+    if (!userId) {
+        throw new Error('Missing userId for analytics request')
+    }
+    return `userId=${userId}`
+}
+
 async function requestJson(url, options = {}) {
-    const response = await fetch(url, options)
+    const separator = url.includes('?') ? '&' : '?'
+    const finalUrl = url + separator + getUserIdQueryParam()
+
+    const response = await fetch(finalUrl, options)
 
     if (!response.ok) {
         throw new Error('Analytics request failed')
@@ -11,6 +22,7 @@ async function requestJson(url, options = {}) {
 }
 
 export async function getWarehouseStatus() {
+    // Status doesn't necessarily need userId but we can pass it
     return requestJson(`${API_BASE_URL}/api/analytics/status`)
 }
 
@@ -82,4 +94,14 @@ export async function getListeningPersonality() {
 
 export async function getTopGenreByMonth() {
     return requestJson(`${API_BASE_URL}/api/analytics/reports/top-genre-by-month`)
+}
+
+export async function getArtistRankingEvolution() {
+    return requestJson(`${API_BASE_URL}/api/analytics/reports/artist-ranking-evolution`)
+}
+
+export async function runMusicBrainzEnrichment(limit = 20) {
+    return requestJson(`${API_BASE_URL}/api/analytics/enrichment/musicbrainz-genres?limit=${limit}`, {
+        method: 'POST'
+    })
 }

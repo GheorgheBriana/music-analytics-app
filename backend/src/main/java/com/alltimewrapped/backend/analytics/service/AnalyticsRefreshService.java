@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.TextStyle;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -46,6 +47,16 @@ public class AnalyticsRefreshService {
         int skippedInvalidRecords = 0;
         int recordsWithFallbackDimensions = 0;
 
+        Map<String, DwDimUser> userCache = new HashMap<>();
+        Map<String, DwDimTrack> trackCache = new HashMap<>();
+        Map<String, DwDimArtist> artistCache = new HashMap<>();
+        Map<String, DwDimAlbum> albumCache = new HashMap<>();
+        Map<String, DwDimGenre> genreCache = new HashMap<>();
+        Map<String, DwDimDate> dateCache = new HashMap<>();
+        Map<String, DwDimTime> timeCache = new HashMap<>();
+        Map<String, DwDimPlatform> platformCache = new HashMap<>();
+        Map<String, DwDimSource> sourceCache = new HashMap<>();
+
         for (ListeningRecord record : records) {
             processedRecords++;
 
@@ -67,15 +78,15 @@ public class AnalyticsRefreshService {
                 recordsWithFallbackDimensions++;
             }
 
-            DwDimUser userDim = findOrCreateUser(record.getUser());
-            DwDimTrack trackDim = findOrCreateTrack(track);
-            DwDimArtist artistDim = findOrCreateArtist(primaryArtist);
-            DwDimAlbum albumDim = findOrCreateAlbum(album);
-            DwDimGenre genreDim = findOrCreateGenre(primaryGenre);
-            DwDimDate dateDim = findOrCreateDate(record.getPlayedAt());
-            DwDimTime timeDim = findOrCreateTime(record.getPlayedAt());
-            DwDimPlatform platformDim = findOrCreatePlatform(record.getPlatform());
-            DwDimSource sourceDim = findOrCreateSource(record.getSource());
+            DwDimUser userDim = findOrCreateUser(record.getUser(), userCache);
+            DwDimTrack trackDim = findOrCreateTrack(track, trackCache);
+            DwDimArtist artistDim = findOrCreateArtist(primaryArtist, artistCache);
+            DwDimAlbum albumDim = findOrCreateAlbum(album, albumCache);
+            DwDimGenre genreDim = findOrCreateGenre(primaryGenre, genreCache);
+            DwDimDate dateDim = findOrCreateDate(record.getPlayedAt(), dateCache);
+            DwDimTime timeDim = findOrCreateTime(record.getPlayedAt(), timeCache);
+            DwDimPlatform platformDim = findOrCreatePlatform(record.getPlatform(), platformCache);
+            DwDimSource sourceDim = findOrCreateSource(record.getSource(), sourceCache);
 
             Long msPlayed = record.getMsPlayed() != null ? record.getMsPlayed() : 0L;
             Double minutesPlayed = msPlayed / 60000.0;
@@ -115,8 +126,11 @@ public class AnalyticsRefreshService {
         return result;
     }
 
-    private DwDimUser findOrCreateUser(AppUser user) {
-        return dwDimUserRepository.findByOriginalUserId(user.getId())
+    private DwDimUser findOrCreateUser(AppUser user, Map<String, DwDimUser> cache) {
+        String key = String.valueOf(user.getId());
+        if (cache.containsKey(key)) return cache.get(key);
+
+        DwDimUser dim = dwDimUserRepository.findByOriginalUserId(user.getId())
                 .orElseGet(() -> dwDimUserRepository.save(
                         DwDimUser.builder()
                                 .originalUserId(user.getId())
@@ -125,10 +139,15 @@ public class AnalyticsRefreshService {
                                 .country(null)
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimTrack findOrCreateTrack(Track track) {
-        return dwDimTrackRepository.findByOriginalTrackId(track.getId())
+    private DwDimTrack findOrCreateTrack(Track track, Map<String, DwDimTrack> cache) {
+        String key = String.valueOf(track.getId());
+        if (cache.containsKey(key)) return cache.get(key);
+
+        DwDimTrack dim = dwDimTrackRepository.findByOriginalTrackId(track.getId())
                 .orElseGet(() -> dwDimTrackRepository.save(
                         DwDimTrack.builder()
                                 .originalTrackId(track.getId())
@@ -138,14 +157,19 @@ public class AnalyticsRefreshService {
                                 .imageUrl(track.getImageUrl())
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimArtist findOrCreateArtist(Artist artist) {
+    private DwDimArtist findOrCreateArtist(Artist artist, Map<String, DwDimArtist> cache) {
         if (artist == null || artist.getId() == null) {
-            return findOrCreateUnknownArtist();
+            return findOrCreateUnknownArtist(cache);
         }
 
-        return dwDimArtistRepository.findByOriginalArtistId(artist.getId())
+        String key = String.valueOf(artist.getId());
+        if (cache.containsKey(key)) return cache.get(key);
+
+        DwDimArtist dim = dwDimArtistRepository.findByOriginalArtistId(artist.getId())
                 .orElseGet(() -> dwDimArtistRepository.save(
                         DwDimArtist.builder()
                                 .originalArtistId(artist.getId())
@@ -153,10 +177,15 @@ public class AnalyticsRefreshService {
                                 .spotifyArtistUri(artist.getSpotifyArtistUri())
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimArtist findOrCreateUnknownArtist() {
-        return dwDimArtistRepository.findByOriginalArtistId(UNKNOWN_ARTIST_ID)
+    private DwDimArtist findOrCreateUnknownArtist(Map<String, DwDimArtist> cache) {
+        String key = String.valueOf(UNKNOWN_ARTIST_ID);
+        if (cache.containsKey(key)) return cache.get(key);
+
+        DwDimArtist dim = dwDimArtistRepository.findByOriginalArtistId(UNKNOWN_ARTIST_ID)
                 .orElseGet(() -> dwDimArtistRepository.save(
                         DwDimArtist.builder()
                                 .originalArtistId(UNKNOWN_ARTIST_ID)
@@ -164,14 +193,19 @@ public class AnalyticsRefreshService {
                                 .spotifyArtistUri(null)
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimAlbum findOrCreateAlbum(Album album) {
+    private DwDimAlbum findOrCreateAlbum(Album album, Map<String, DwDimAlbum> cache) {
         if (album == null || album.getId() == null) {
-            return findOrCreateUnknownAlbum();
+            return findOrCreateUnknownAlbum(cache);
         }
 
-        return dwDimAlbumRepository.findByOriginalAlbumId(album.getId())
+        String key = String.valueOf(album.getId());
+        if (cache.containsKey(key)) return cache.get(key);
+
+        DwDimAlbum dim = dwDimAlbumRepository.findByOriginalAlbumId(album.getId())
                 .orElseGet(() -> dwDimAlbumRepository.save(
                         DwDimAlbum.builder()
                                 .originalAlbumId(album.getId())
@@ -180,10 +214,15 @@ public class AnalyticsRefreshService {
                                 .albumType(album.getAlbumType())
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimAlbum findOrCreateUnknownAlbum() {
-        return dwDimAlbumRepository.findByOriginalAlbumId(UNKNOWN_ALBUM_ID)
+    private DwDimAlbum findOrCreateUnknownAlbum(Map<String, DwDimAlbum> cache) {
+        String key = String.valueOf(UNKNOWN_ALBUM_ID);
+        if (cache.containsKey(key)) return cache.get(key);
+
+        DwDimAlbum dim = dwDimAlbumRepository.findByOriginalAlbumId(UNKNOWN_ALBUM_ID)
                 .orElseGet(() -> dwDimAlbumRepository.save(
                         DwDimAlbum.builder()
                                 .originalAlbumId(UNKNOWN_ALBUM_ID)
@@ -192,36 +231,50 @@ public class AnalyticsRefreshService {
                                 .albumType(null)
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimGenre findOrCreateGenre(Genre genre) {
+    private DwDimGenre findOrCreateGenre(Genre genre, Map<String, DwDimGenre> cache) {
         if (genre == null || genre.getId() == null) {
-            return findOrCreateUnknownGenre();
+            return findOrCreateUnknownGenre(cache);
         }
 
-        return dwDimGenreRepository.findByOriginalGenreId(genre.getId())
+        String key = String.valueOf(genre.getId());
+        if (cache.containsKey(key)) return cache.get(key);
+
+        DwDimGenre dim = dwDimGenreRepository.findByOriginalGenreId(genre.getId())
                 .orElseGet(() -> dwDimGenreRepository.save(
                         DwDimGenre.builder()
                                 .originalGenreId(genre.getId())
                                 .genreName(normalize(genre.getName(), "unknown"))
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimGenre findOrCreateUnknownGenre() {
-        return dwDimGenreRepository.findByOriginalGenreId(UNKNOWN_GENRE_ID)
+    private DwDimGenre findOrCreateUnknownGenre(Map<String, DwDimGenre> cache) {
+        String key = String.valueOf(UNKNOWN_GENRE_ID);
+        if (cache.containsKey(key)) return cache.get(key);
+
+        DwDimGenre dim = dwDimGenreRepository.findByOriginalGenreId(UNKNOWN_GENRE_ID)
                 .orElseGet(() -> dwDimGenreRepository.save(
                         DwDimGenre.builder()
                                 .originalGenreId(UNKNOWN_GENRE_ID)
                                 .genreName("unknown")
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimDate findOrCreateDate(OffsetDateTime playedAt) {
+    private DwDimDate findOrCreateDate(OffsetDateTime playedAt, Map<String, DwDimDate> cache) {
         LocalDate fullDate = playedAt.toLocalDate();
+        String key = fullDate.toString();
+        if (cache.containsKey(key)) return cache.get(key);
 
-        return dwDimDateRepository.findByFullDate(fullDate)
+        DwDimDate dim = dwDimDateRepository.findByFullDate(fullDate)
                 .orElseGet(() -> {
                     int month = fullDate.getMonthValue();
                     int year = fullDate.getYear();
@@ -243,13 +296,17 @@ public class AnalyticsRefreshService {
                                     .build()
                     );
                 });
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimTime findOrCreateTime(OffsetDateTime playedAt) {
+    private DwDimTime findOrCreateTime(OffsetDateTime playedAt, Map<String, DwDimTime> cache) {
         int hour = playedAt.getHour();
         int minute = playedAt.getMinute();
+        String key = hour + ":" + minute;
+        if (cache.containsKey(key)) return cache.get(key);
 
-        return dwDimTimeRepository.findByHourAndMinute(hour, minute)
+        DwDimTime dim = dwDimTimeRepository.findByHourAndMinute(hour, minute)
                 .orElseGet(() -> dwDimTimeRepository.save(
                         DwDimTime.builder()
                                 .hour(hour)
@@ -257,28 +314,38 @@ public class AnalyticsRefreshService {
                                 .partOfDay(resolvePartOfDay(hour))
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimPlatform findOrCreatePlatform(String platform) {
+    private DwDimPlatform findOrCreatePlatform(String platform, Map<String, DwDimPlatform> cache) {
         String platformName = normalize(platform, "unknown");
+        String key = platformName.toLowerCase();
+        if (cache.containsKey(key)) return cache.get(key);
 
-        return dwDimPlatformRepository.findByPlatformNameIgnoreCase(platformName)
+        DwDimPlatform dim = dwDimPlatformRepository.findByPlatformNameIgnoreCase(platformName)
                 .orElseGet(() -> dwDimPlatformRepository.save(
                         DwDimPlatform.builder()
                                 .platformName(platformName)
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
-    private DwDimSource findOrCreateSource(ListeningSource source) {
+    private DwDimSource findOrCreateSource(ListeningSource source, Map<String, DwDimSource> cache) {
         String sourceName = source != null ? source.name() : "unknown";
+        String key = sourceName.toLowerCase();
+        if (cache.containsKey(key)) return cache.get(key);
 
-        return dwDimSourceRepository.findBySourceNameIgnoreCase(sourceName)
+        DwDimSource dim = dwDimSourceRepository.findBySourceNameIgnoreCase(sourceName)
                 .orElseGet(() -> dwDimSourceRepository.save(
                         DwDimSource.builder()
                                 .sourceName(sourceName)
                                 .build()
                 ));
+        cache.put(key, dim);
+        return dim;
     }
 
     private Artist getPrimaryArtist(Track track) {

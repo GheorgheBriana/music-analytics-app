@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react'
-import { getWarehouseStatus, rebuildAnalyticsPipeline } from '../../api/analyticsApi'
+import { getWarehouseStatus, rebuildAnalyticsPipeline, runMusicBrainzEnrichment } from '../../api/analyticsApi'
 
 function AnalyticsPipelinePage() {
     const [status, setStatus] = useState(null)
     const [pipelineResult, setPipelineResult] = useState(null)
     const [loading, setLoading] = useState(true)
     const [running, setRunning] = useState(false)
+    const [enriching, setEnriching] = useState(false)
     const [error, setError] = useState('')
+    
+    const [backfillLimit, setBackfillLimit] = useState(20000)
+    const [refreshLimit, setRefreshLimit] = useState(20000)
+    const [enrichmentLimit, setEnrichmentLimit] = useState(50)
+    const [enrichmentResult, setEnrichmentResult] = useState(null)
 
     async function loadStatus() {
         try {
@@ -30,7 +36,7 @@ function AnalyticsPipelinePage() {
             setError('')
             setPipelineResult(null)
 
-            const result = await rebuildAnalyticsPipeline(200, 500)
+            const result = await rebuildAnalyticsPipeline(backfillLimit, refreshLimit)
             setPipelineResult(result)
 
             await loadStatus()
@@ -38,6 +44,21 @@ function AnalyticsPipelinePage() {
             setError('Analytics pipeline could not be executed.')
         } finally {
             setRunning(false)
+        }
+    }
+
+    async function handleRunEnrichment() {
+        try {
+            setEnriching(true)
+            setError('')
+            setEnrichmentResult(null)
+
+            const result = await runMusicBrainzEnrichment(enrichmentLimit)
+            setEnrichmentResult(result)
+        } catch (error) {
+            setError('MusicBrainz enrichment could not be executed.')
+        } finally {
+            setEnriching(false)
         }
     }
 
@@ -65,22 +86,44 @@ function AnalyticsPipelinePage() {
         <div className="all-time-section" style={{ background: 'transparent', border: 'none', padding: '0', marginTop: '20px' }}>
             <div className="all-time-header">
                 <div>
-                    <h2>Data Warehouse Pipeline</h2>
+                    <h2>DW Control Center</h2>
                     <p>
-                        This module shows how operational Spotify listening records are propagated into the analytical Data Warehouse.
+                        Manage operational Spotify listening records propagation into the analytical Data Warehouse and API enrichments.
                     </p>
                     <p className="period-label">
-                        OLTP → ETL → Data Warehouse → BI reports
+                        OLTP → API Enrichment → Data Warehouse → BI reports
                     </p>
                 </div>
+            </div>
 
-                <button
-                    className="upload-btn"
-                    onClick={handleRunPipeline}
-                    disabled={running}
-                >
-                    {running ? 'Running pipeline...' : 'Run Analytics Pipeline'}
-                </button>
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '24px' }}>
+                <div className="pipeline-message-card" style={{ flex: 1, margin: 0, border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <strong style={{ display: 'block', marginBottom: '12px' }}>1. MusicBrainz Metadata Enrichment</strong>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <input type="number" value={enrichmentLimit} onChange={e => setEnrichmentLimit(e.target.value)} style={{ width: '80px', padding: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }} />
+                        <span style={{ fontSize: '13px', color: '#a3a3a3' }}>artists limit</span>
+                        <button className="upload-btn" onClick={handleRunEnrichment} disabled={enriching} style={{ marginLeft: 'auto' }}>
+                            {enriching ? 'Enriching...' : 'Run Enrichment'}
+                        </button>
+                    </div>
+                    {enrichmentResult && (
+                        <p style={{ marginTop: '12px', fontSize: '13px', color: '#1db954' }}>
+                            Processed {enrichmentResult.processed} artists, enriched {enrichmentResult.artistsEnrichedWithTags} with tags.
+                        </p>
+                    )}
+                </div>
+
+                <div className="pipeline-message-card" style={{ flex: 1, margin: 0, border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <strong style={{ display: 'block', marginBottom: '12px' }}>2. Data Warehouse Pipeline</strong>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <input type="number" value={backfillLimit} onChange={e => setBackfillLimit(e.target.value)} style={{ width: '90px', padding: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }} />
+                        <span style={{ fontSize: '13px', color: '#a3a3a3' }}>backfill / refresh</span>
+                        <input type="number" value={refreshLimit} onChange={e => setRefreshLimit(e.target.value)} style={{ width: '90px', padding: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }} />
+                        <button className="upload-btn" onClick={handleRunPipeline} disabled={running} style={{ marginLeft: 'auto' }}>
+                            {running ? 'Running...' : 'Run Pipeline'}
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {error && (

@@ -14,32 +14,45 @@ public class DwStatsService {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public Map<String, Object> getWarehouseSummary() {
+    private String factUserJoin(Long userId) {
+        return userId != null ? " JOIN dw.dw_dim_user u ON f.user_key = u.user_key WHERE u.original_user_id = ? " : "";
+    }
+
+    private String mvUserWhere(Long userId) {
+        return userId != null ? " WHERE original_user_id = ? " : "";
+    }
+
+    private Object[] params(Long userId) {
+        return userId != null ? new Object[]{userId} : new Object[]{};
+    }
+
+    public Map<String, Object> getWarehouseSummary(Long userId) {
         Map<String, Object> summary = new LinkedHashMap<>();
+        String join = factUserJoin(userId);
 
         Long totalEvents = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM dw.dw_fact_listening_event",
-                Long.class
+                "SELECT COUNT(*) FROM dw.dw_fact_listening_event f " + join,
+                Long.class, params(userId)
         );
 
         Double totalMinutes = jdbcTemplate.queryForObject(
-                "SELECT COALESCE(SUM(minutes_played), 0) FROM dw.dw_fact_listening_event",
-                Double.class
+                "SELECT COALESCE(SUM(minutes_played), 0) FROM dw.dw_fact_listening_event f " + join,
+                Double.class, params(userId)
         );
 
         Long uniqueTracks = jdbcTemplate.queryForObject(
-                "SELECT COUNT(DISTINCT track_key) FROM dw.dw_fact_listening_event",
-                Long.class
+                "SELECT COUNT(DISTINCT track_key) FROM dw.dw_fact_listening_event f " + join,
+                Long.class, params(userId)
         );
 
         Long uniqueArtists = jdbcTemplate.queryForObject(
-                "SELECT COUNT(DISTINCT artist_key) FROM dw.dw_fact_listening_event",
-                Long.class
+                "SELECT COUNT(DISTINCT artist_key) FROM dw.dw_fact_listening_event f " + join,
+                Long.class, params(userId)
         );
 
         Long uniqueGenres = jdbcTemplate.queryForObject(
-                "SELECT COUNT(DISTINCT genre_key) FROM dw.dw_fact_listening_event",
-                Long.class
+                "SELECT COUNT(DISTINCT genre_key) FROM dw.dw_fact_listening_event f " + join,
+                Long.class, params(userId)
         );
 
         summary.put("totalEvents", totalEvents);
@@ -51,119 +64,68 @@ public class DwStatsService {
         return summary;
     }
 
-    public List<Map<String, Object>> getMonthlyListening() {
-        String sql = """
-                SELECT
-                    year AS "year",
-                    month AS "month",
-                    month_name AS "monthName",
-                    total_plays AS "totalPlays",
-                    total_minutes AS "totalMinutes"
-                FROM dw.mv_monthly_listening
-                """;
-
-        return jdbcTemplate.queryForList(sql);
+    public List<Map<String, Object>> getMonthlyListening(Long userId) {
+        String sql = "SELECT year AS \"year\", month AS \"month\", month_name AS \"monthName\", " +
+                     "total_plays AS \"totalPlays\", total_minutes AS \"totalMinutes\" " +
+                     "FROM dw.mv_monthly_listening " + mvUserWhere(userId);
+        return jdbcTemplate.queryForList(sql, params(userId));
     }
 
-    public List<Map<String, Object>> getPartOfDayStats() {
-        String sql = """
-                SELECT
-                    part_of_day AS "partOfDay",
-                    total_plays AS "totalPlays",
-                    total_minutes AS "totalMinutes"
-                FROM dw.mv_part_of_day_stats
-                """;
-
-        return jdbcTemplate.queryForList(sql);
+    public List<Map<String, Object>> getPartOfDayStats(Long userId) {
+        String sql = "SELECT part_of_day AS \"partOfDay\", total_plays AS \"totalPlays\", total_minutes AS \"totalMinutes\" " +
+                     "FROM dw.mv_part_of_day_stats " + mvUserWhere(userId);
+        return jdbcTemplate.queryForList(sql, params(userId));
     }
 
-    public List<Map<String, Object>> getWeekendVsWeekdayStats() {
-        String sql = """
-                SELECT
-                    day_type AS "dayType",
-                    total_plays AS "totalPlays",
-                    total_minutes AS "totalMinutes"
-                FROM dw.mv_weekend_vs_weekday_stats
-                """;
-
-        return jdbcTemplate.queryForList(sql);
+    public List<Map<String, Object>> getWeekendVsWeekdayStats(Long userId) {
+        String sql = "SELECT day_type AS \"dayType\", total_plays AS \"totalPlays\", total_minutes AS \"totalMinutes\" " +
+                     "FROM dw.mv_weekend_vs_weekday_stats " + mvUserWhere(userId);
+        return jdbcTemplate.queryForList(sql, params(userId));
     }
 
-    public List<Map<String, Object>> getTopGenres() {
-        String sql = """
-                SELECT
-                    genre_name AS "genreName",
-                    total_plays AS "totalPlays",
-                    total_minutes AS "totalMinutes"
-                FROM dw.mv_top_genres
-                LIMIT 10
-                """;
-
-        return jdbcTemplate.queryForList(sql);
+    public List<Map<String, Object>> getTopGenres(Long userId) {
+        String sql = "SELECT genre_name AS \"genreName\", total_plays AS \"totalPlays\", total_minutes AS \"totalMinutes\" " +
+                     "FROM dw.mv_top_genres " + mvUserWhere(userId) + " LIMIT 10";
+        return jdbcTemplate.queryForList(sql, params(userId));
     }
 
-    public List<Map<String, Object>> getCompletionRateByArtist() {
-        String sql = """
-                SELECT
-                    a.artist_name AS "artistName",
-                    COUNT(f.fact_id) AS "totalPlays",
-                    ROUND(AVG(f.completion_rate)::numeric, 3) AS "averageCompletionRate",
-                    ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw.dw_fact_listening_event f
-                JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
-                WHERE f.completion_rate IS NOT NULL
-                GROUP BY a.artist_name
-                HAVING COUNT(f.fact_id) >= 3
-                ORDER BY "averageCompletionRate" DESC
-                LIMIT 10
-                """;
-
-        return jdbcTemplate.queryForList(sql);
+    public List<Map<String, Object>> getCompletionRateByArtist(Long userId) {
+        String sql = "SELECT a.artist_name AS \"artistName\", COUNT(f.fact_id) AS \"totalPlays\", " +
+                     "ROUND((AVG(f.completion_rate) * 100)::numeric, 2) AS \"averageCompletionRate\", " +
+                     "ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS \"totalMinutes\" " +
+                     "FROM dw.dw_fact_listening_event f " +
+                     "JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key " +
+                     (userId != null ? "JOIN dw.dw_dim_user u ON f.user_key = u.user_key WHERE u.original_user_id = ? AND " : "WHERE ") +
+                     "f.completion_rate IS NOT NULL " +
+                     "GROUP BY a.artist_name HAVING COUNT(f.fact_id) >= 3 " +
+                     "ORDER BY \"averageCompletionRate\" DESC LIMIT 10";
+        return jdbcTemplate.queryForList(sql, params(userId));
     }
 
-    public List<Map<String, Object>> getPlatformStats() {
-        String sql = """
-                SELECT
-                    p.platform_name AS "platformName",
-                    COUNT(f.fact_id) AS "totalPlays",
-                    ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw.dw_fact_listening_event f
-                JOIN dw.dw_dim_platform p ON f.platform_key = p.platform_key
-                GROUP BY p.platform_name
-                ORDER BY "totalMinutes" DESC
-                """;
-
-        return jdbcTemplate.queryForList(sql);
+    public List<Map<String, Object>> getPlatformStats(Long userId) {
+        String sql = "SELECT p.platform_name AS \"platformName\", COUNT(f.fact_id) AS \"totalPlays\", " +
+                     "ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS \"totalMinutes\" " +
+                     "FROM dw.dw_fact_listening_event f " +
+                     "JOIN dw.dw_dim_platform p ON f.platform_key = p.platform_key " +
+                     factUserJoin(userId) +
+                     "GROUP BY p.platform_name ORDER BY \"totalMinutes\" DESC";
+        return jdbcTemplate.queryForList(sql, params(userId));
     }
 
-    public List<Map<String, Object>> getListeningHeatmap() {
-        String sql = """
-                SELECT
-                    day_of_week AS "dayOfWeek",
-                    day_name AS "dayName",
-                    hour AS "hour",
-                    total_plays AS "totalPlays",
-                    total_minutes AS "totalMinutes"
-                FROM dw.mv_listening_heatmap
-                """;
-
-        return jdbcTemplate.queryForList(sql);
+    public List<Map<String, Object>> getListeningHeatmap(Long userId) {
+        String sql = "SELECT day_of_week AS \"dayOfWeek\", day_name AS \"dayName\", hour AS \"hour\", " +
+                     "total_plays AS \"totalPlays\", total_minutes AS \"totalMinutes\" " +
+                     "FROM dw.mv_listening_heatmap " + mvUserWhere(userId);
+        return jdbcTemplate.queryForList(sql, params(userId));
     }
 
-    public Map<String, Object> getPeakListeningTime() {
-        String sql = """
-                SELECT
-                    day_of_week AS "dayOfWeek",
-                    day_name AS "dayName",
-                    hour AS "hour",
-                    total_plays AS "totalPlays",
-                    total_minutes AS "totalMinutes"
-                FROM dw.mv_listening_heatmap
-                ORDER BY total_plays DESC, total_minutes DESC
-                LIMIT 1
-                """;
+    public Map<String, Object> getPeakListeningTime(Long userId) {
+        String sql = "SELECT day_of_week AS \"dayOfWeek\", day_name AS \"dayName\", hour AS \"hour\", " +
+                     "total_plays AS \"totalPlays\", total_minutes AS \"totalMinutes\" " +
+                     "FROM dw.mv_listening_heatmap " + mvUserWhere(userId) +
+                     " ORDER BY total_plays DESC, total_minutes DESC LIMIT 1";
 
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, params(userId));
 
         if (rows.isEmpty()) {
             Map<String, Object> emptyResult = new LinkedHashMap<>();
@@ -177,20 +139,17 @@ public class DwStatsService {
         }
 
         Map<String, Object> peak = new LinkedHashMap<>(rows.get(0));
-
         Object dayName = peak.get("dayName");
         Object hour = peak.get("hour");
-
         peak.put("message", "Your peak listening time is " + dayName + " at " + hour + ":00.");
-
         return peak;
     }
 
-    public Map<String, Object> getListeningPersonality() {
+    public Map<String, Object> getListeningPersonality(Long userId) {
         Map<String, Object> result = new LinkedHashMap<>();
 
-        List<Map<String, Object>> partOfDayStats = getPartOfDayStats();
-        List<Map<String, Object>> dayTypeStats = getWeekendVsWeekdayStats();
+        List<Map<String, Object>> partOfDayStats = getPartOfDayStats(userId);
+        List<Map<String, Object>> dayTypeStats = getWeekendVsWeekdayStats(userId);
 
         if (partOfDayStats.isEmpty()) {
             result.put("personality", "No Data Yet");
@@ -219,35 +178,16 @@ public class DwStatsService {
     }
 
     private String resolvePersonality(String dominantPartOfDay, String dominantDayType) {
-        if ("night".equalsIgnoreCase(dominantPartOfDay)) {
-            return "Night Listener";
-        }
-
-        if ("evening".equalsIgnoreCase(dominantPartOfDay)) {
-            return "Evening Listener";
-        }
-
-        if ("morning".equalsIgnoreCase(dominantPartOfDay)) {
-            return "Morning Starter";
-        }
-
-        if ("afternoon".equalsIgnoreCase(dominantPartOfDay)) {
-            return "Afternoon Listener";
-        }
-
-        if ("weekend".equalsIgnoreCase(dominantDayType)) {
-            return "Weekend Listener";
-        }
-
+        if ("night".equalsIgnoreCase(dominantPartOfDay)) return "Night Listener";
+        if ("evening".equalsIgnoreCase(dominantPartOfDay)) return "Evening Listener";
+        if ("morning".equalsIgnoreCase(dominantPartOfDay)) return "Morning Starter";
+        if ("afternoon".equalsIgnoreCase(dominantPartOfDay)) return "Afternoon Listener";
+        if ("weekend".equalsIgnoreCase(dominantDayType)) return "Weekend Listener";
         return "Everyday Listener";
     }
 
     private String buildPersonalityDescription(String dominantPartOfDay, String dominantDayType) {
-        return "Most of your listening activity happens during the "
-                + dominantPartOfDay
-                + ", especially on "
-                + dominantDayType
-                + " days.";
+        return "Most of your listening activity happens during the " + dominantPartOfDay + ", especially on " + dominantDayType + " days.";
     }
 
     public void refreshMaterializedViews() {

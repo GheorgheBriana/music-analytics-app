@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,7 +41,11 @@ public class OltpBackfillService {
         int createdGenreLinks = 0;
         int createdAlbumLinks = 0;
 
-        Genre unknownGenre = findOrCreateGenre("unknown");
+        Map<String, Artist> artistCache = new HashMap<>();
+        Map<String, Album> albumCache = new HashMap<>();
+        Map<String, Genre> genreCache = new HashMap<>();
+
+        Genre unknownGenre = findOrCreateGenre("unknown", genreCache);
 
         for (Track track : tracks) {
             processedTracks++;
@@ -58,7 +63,7 @@ public class OltpBackfillService {
             }
 
             if (track.getAlbum() == null) {
-                Album album = findOrCreateAlbum(albumName);
+                Album album = findOrCreateAlbum(albumName, albumCache);
                 track.setAlbum(album);
                 createdAlbumLinks++;
                 changed = true;
@@ -70,7 +75,7 @@ public class OltpBackfillService {
                             && artist.getArtistName().equalsIgnoreCase(artistName));
 
             if (!artistAlreadyLinked) {
-                Artist artist = findOrCreateArtist(artistName);
+                Artist artist = findOrCreateArtist(artistName, artistCache);
                 track.getArtists().add(artist);
                 createdArtistLinks++;
                 changed = true;
@@ -105,31 +110,46 @@ public class OltpBackfillService {
         return result;
     }
 
-    private Artist findOrCreateArtist(String artistName) {
-        return artistRepository.findByArtistNameIgnoreCase(artistName)
+    private Artist findOrCreateArtist(String artistName, Map<String, Artist> cache) {
+        String key = artistName.toLowerCase();
+        if (cache.containsKey(key)) return cache.get(key);
+        
+        Artist artist = artistRepository.findByArtistNameIgnoreCase(artistName)
                 .orElseGet(() -> artistRepository.save(
                         Artist.builder()
                                 .artistName(artistName)
                                 .build()
                 ));
+        cache.put(key, artist);
+        return artist;
     }
 
-    private Album findOrCreateAlbum(String albumName) {
-        return albumRepository.findByAlbumNameIgnoreCase(albumName)
+    private Album findOrCreateAlbum(String albumName, Map<String, Album> cache) {
+        String key = albumName.toLowerCase();
+        if (cache.containsKey(key)) return cache.get(key);
+        
+        Album album = albumRepository.findByAlbumNameIgnoreCase(albumName)
                 .orElseGet(() -> albumRepository.save(
                         Album.builder()
                                 .albumName(albumName)
                                 .build()
                 ));
+        cache.put(key, album);
+        return album;
     }
 
-    private Genre findOrCreateGenre(String genreName) {
-        return genreRepository.findByNameIgnoreCase(genreName)
+    private Genre findOrCreateGenre(String genreName, Map<String, Genre> cache) {
+        String key = genreName.toLowerCase();
+        if (cache.containsKey(key)) return cache.get(key);
+        
+        Genre genre = genreRepository.findByNameIgnoreCase(genreName)
                 .orElseGet(() -> genreRepository.save(
                         Genre.builder()
                                 .name(genreName)
                                 .build()
                 ));
+        cache.put(key, genre);
+        return genre;
     }
 
     private String normalizeValue(String value, String fallback) {

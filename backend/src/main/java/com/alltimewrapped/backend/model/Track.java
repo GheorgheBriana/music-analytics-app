@@ -58,6 +58,7 @@ public class Track {
 
     @ManyToMany
     @JoinTable(
+            schema = "oltp",
             name = "track_genres",
             joinColumns = @JoinColumn(name = "track_id"),
             inverseJoinColumns = @JoinColumn(name = "genre_id")

@@ -25,6 +25,7 @@ public class AnalyticsController {
     private final DwStatsService dwStatsService;
     private final MusicInsightService musicInsightService;
     private final AdvancedAnalyticsService advancedAnalyticsService;
+    private final com.alltimewrapped.backend.analytics.service.MusicBrainzEnrichmentService musicBrainzEnrichmentService;
 
     @PostMapping("/refresh")
     public Map<String, Object> refreshWarehouse(
@@ -52,77 +53,89 @@ public class AnalyticsController {
     }
 
     @GetMapping("/reports/summary")
-    public Map<String, Object> getWarehouseSummary() {
-        return dwStatsService.getWarehouseSummary();
+    public Map<String, Object> getWarehouseSummary(@RequestParam(required = false) Long userId) {
+        return dwStatsService.getWarehouseSummary(userId);
     }
 
     @GetMapping("/reports/monthly-listening")
-    public List<Map<String, Object>> getMonthlyListening() {
-        return dwStatsService.getMonthlyListening();
+    public List<Map<String, Object>> getMonthlyListening(@RequestParam(required = false) Long userId) {
+        return dwStatsService.getMonthlyListening(userId);
     }
 
     @GetMapping("/reports/part-of-day")
-    public List<Map<String, Object>> getPartOfDayStats() {
-        return dwStatsService.getPartOfDayStats();
+    public List<Map<String, Object>> getPartOfDayStats(@RequestParam(required = false) Long userId) {
+        return dwStatsService.getPartOfDayStats(userId);
     }
 
     @GetMapping("/reports/weekend-vs-weekday")
-    public List<Map<String, Object>> getWeekendVsWeekdayStats() {
-        return dwStatsService.getWeekendVsWeekdayStats();
+    public List<Map<String, Object>> getWeekendVsWeekdayStats(@RequestParam(required = false) Long userId) {
+        return dwStatsService.getWeekendVsWeekdayStats(userId);
     }
 
     @GetMapping("/reports/top-genres")
-    public List<Map<String, Object>> getTopGenres() {
-        return dwStatsService.getTopGenres();
+    public List<Map<String, Object>> getTopGenres(@RequestParam(required = false) Long userId) {
+        return dwStatsService.getTopGenres(userId);
     }
 
     @GetMapping("/reports/completion-rate-by-artist")
-    public List<Map<String, Object>> getCompletionRateByArtist() {
-        return dwStatsService.getCompletionRateByArtist();
+    public List<Map<String, Object>> getCompletionRateByArtist(@RequestParam(required = false) Long userId) {
+        return dwStatsService.getCompletionRateByArtist(userId);
     }
 
     @GetMapping("/reports/platforms")
-    public List<Map<String, Object>> getPlatformStats() {
-        return dwStatsService.getPlatformStats();
+    public List<Map<String, Object>> getPlatformStats(@RequestParam(required = false) Long userId) {
+        return dwStatsService.getPlatformStats(userId);
     }
 
     @GetMapping("/reports/listening-heatmap")
-    public List<Map<String, Object>> getListeningHeatmap() {
-        return dwStatsService.getListeningHeatmap();
+    public List<Map<String, Object>> getListeningHeatmap(@RequestParam(required = false) Long userId) {
+        return dwStatsService.getListeningHeatmap(userId);
     }
 
     @GetMapping("/reports/peak-listening-time")
-    public Map<String, Object> getPeakListeningTime() {
-        return dwStatsService.getPeakListeningTime();
+    public Map<String, Object> getPeakListeningTime(@RequestParam(required = false) Long userId) {
+        return dwStatsService.getPeakListeningTime(userId);
     }
 
     @GetMapping("/reports/listening-personality")
-    public Map<String, Object> getListeningPersonality() {
-        return dwStatsService.getListeningPersonality();
+    public Map<String, Object> getListeningPersonality(@RequestParam(required = false) Long userId) {
+        return dwStatsService.getListeningPersonality(userId);
     }
 
     @GetMapping("/reports/music-insights")
-    public Map<String, Object> getMusicInsights() {
-        return musicInsightService.getMusicInsights();
+    public Map<String, Object> getMusicInsights(@RequestParam(required = false) Long userId) {
+        return musicInsightService.getMusicInsights(userId);
     }
 
     @GetMapping("/reports/monthly-growth")
-    public List<Map<String, Object>> getMonthlyGrowth() {
-        return advancedAnalyticsService.getMonthlyGrowth();
+    public List<Map<String, Object>> getMonthlyGrowth(@RequestParam(required = false) Long userId) {
+        return advancedAnalyticsService.getMonthlyGrowth(userId);
     }
 
     @GetMapping("/reports/top-genre-by-month")
-    public List<Map<String, Object>> getTopGenreByMonth() {
-        return advancedAnalyticsService.getTopGenreByMonth();
+    public List<Map<String, Object>> getTopGenreByMonth(@RequestParam(required = false) Long userId) {
+        return advancedAnalyticsService.getTopGenreByMonth(userId);
     }
 
     @GetMapping("/reports/artist-loyalty")
-    public List<Map<String, Object>> getArtistLoyalty() {
-        return advancedAnalyticsService.getArtistLoyalty();
+    public List<Map<String, Object>> getArtistLoyalty(@RequestParam(required = false) Long userId) {
+        return advancedAnalyticsService.getArtistLoyalty(userId);
     }
 
     @GetMapping("/reports/advanced-overview")
-    public Map<String, Object> getAdvancedAnalyticsOverview() {
-        return advancedAnalyticsService.getAdvancedAnalyticsOverview();
+    public Map<String, Object> getAdvancedAnalyticsOverview(@RequestParam(required = false) Long userId) {
+        return advancedAnalyticsService.getAdvancedAnalyticsOverview(userId);
+    }
+
+    @GetMapping("/reports/artist-ranking-evolution")
+    public List<Map<String, Object>> getArtistRankingEvolution(@RequestParam(required = false) Long userId) {
+        return advancedAnalyticsService.getArtistRankingEvolution(userId);
+    }
+
+    @PostMapping("/enrichment/musicbrainz-genres")
+    public Map<String, Object> enrichArtists(
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        return musicBrainzEnrichmentService.enrichArtists(limit);
     }
 }

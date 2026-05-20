@@ -3,6 +3,7 @@ package com.alltimewrapped.backend.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -32,4 +33,17 @@ public class Artist {
     @ManyToMany(mappedBy = "artists")
     @Builder.Default
     private Set<Track> tracks = new HashSet<>();
+
+    @Column(name = "music_brainz_id")
+    private String musicBrainzId;
+
+    @Column(name = "genre_enriched", nullable = false)
+    @Builder.Default
+    private boolean genreEnriched = false;
+
+    @Column(name = "genre_source")
+    private String genreSource;
+
+    @Column(name = "genre_enriched_at")
+    private LocalDateTime genreEnrichedAt;
 }

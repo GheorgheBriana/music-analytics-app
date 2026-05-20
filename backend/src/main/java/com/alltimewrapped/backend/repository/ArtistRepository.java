@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface ArtistRepository extends JpaRepository<Artist, Long> {
 
     Optional<Artist> findByArtistNameIgnoreCase(String artistName);
+
+    org.springframework.data.domain.Page<Artist> findByGenreEnrichedFalse(org.springframework.data.domain.Pageable pageable);
 }
