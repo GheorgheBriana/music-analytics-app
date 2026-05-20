@@ -62,7 +62,7 @@ function AnalyticsPipelinePage() {
     }
 
     return (
-        <div className="all-time-section">
+        <div className="all-time-section" style={{ background: 'transparent', border: 'none', padding: '0', marginTop: '20px' }}>
             <div className="all-time-header">
                 <div>
                     <h2>Data Warehouse Pipeline</h2>

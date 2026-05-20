@@ -55,3 +55,31 @@ export async function getArtistLoyalty() {
 export async function getMusicInsights() {
     return requestJson(`${API_BASE_URL}/api/analytics/reports/music-insights`)
 }
+
+export async function getAdvancedOverview() {
+    return requestJson(`${API_BASE_URL}/api/analytics/reports/advanced-overview`)
+}
+
+export async function getPartOfDayStats() {
+    return requestJson(`${API_BASE_URL}/api/analytics/reports/part-of-day`)
+}
+
+export async function getPlatforms() {
+    return requestJson(`${API_BASE_URL}/api/analytics/reports/platforms`)
+}
+
+export async function getCompletionRate() {
+    return requestJson(`${API_BASE_URL}/api/analytics/reports/completion-rate-by-artist`)
+}
+
+export async function getPeakListeningTime() {
+    return requestJson(`${API_BASE_URL}/api/analytics/reports/peak-listening-time`)
+}
+
+export async function getListeningPersonality() {
+    return requestJson(`${API_BASE_URL}/api/analytics/reports/listening-personality`)
+}
+
+export async function getTopGenreByMonth() {
+    return requestJson(`${API_BASE_URL}/api/analytics/reports/top-genre-by-month`)
+}
