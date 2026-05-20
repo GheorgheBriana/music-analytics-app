@@ -4,14 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(
-        name = "dw_fact_listening_event",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_dw_fact_original_listening_record_id",
-                        columnNames = "original_listening_record_id"
-                )
-        },
+@Table(schema = "dw", name = "dw_fact_listening_event",
         indexes = {
                 @Index(name = "idx_dw_fact_user_date", columnList = "user_key,date_key"),
                 @Index(name = "idx_dw_fact_artist_date", columnList = "artist_key,date_key"),

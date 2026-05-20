@@ -7,8 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(
-        name = "tracks",
+@Table(schema = "oltp", name = "tracks",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_spotify_track_uri", columnNames = "spotify_track_uri")
         }

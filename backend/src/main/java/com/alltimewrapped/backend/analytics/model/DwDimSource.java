@@ -4,8 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(
-        name = "dw_dim_source",
+@Table(schema = "dw", name = "dw_dim_source",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_dw_dim_source_name", columnNames = "source_name")
         }

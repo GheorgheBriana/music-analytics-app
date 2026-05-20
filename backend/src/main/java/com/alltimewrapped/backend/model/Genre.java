@@ -7,8 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(
-        name = "genres",
+@Table(schema = "oltp", name = "genres",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_genre_name", columnNames = "name")
         }

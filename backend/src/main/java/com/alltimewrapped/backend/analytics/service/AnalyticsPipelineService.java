@@ -13,6 +13,7 @@ public class AnalyticsPipelineService {
 
     private final OltpBackfillService oltpBackfillService;
     private final AnalyticsRefreshService analyticsRefreshService;
+    private final DwStatsService dwStatsService;
 
     public Map<String, Object> rebuildAnalyticsData(int backfillLimit, int refreshLimit) {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -20,6 +21,14 @@ public class AnalyticsPipelineService {
         Map<String, Object> backfillResult = oltpBackfillService.backfillTrackRelations(backfillLimit);
 
         Map<String, Object> warehouseResult = analyticsRefreshService.refreshWarehouse(refreshLimit);
+
+        try {
+            dwStatsService.refreshMaterializedViews();
+            warehouseResult.put("viewsRefreshed", true);
+        } catch (Exception e) {
+            warehouseResult.put("viewsRefreshed", false);
+            warehouseResult.put("viewsRefreshError", e.getMessage());
+        }
 
         result.put("message", "Analytics pipeline completed successfully");
         result.put("backfillLimit", backfillLimit);

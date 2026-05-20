@@ -20,7 +20,7 @@ public class MusicInsightService {
 
         long totalPlays = getLongValue("""
                 SELECT COUNT(*)
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 """);
 
         if (totalPlays == 0) {
@@ -33,22 +33,22 @@ public class MusicInsightService {
 
         double totalMinutes = getDoubleValue("""
                 SELECT COALESCE(SUM(minutes_played), 0)
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 """);
 
         long uniqueTracks = getLongValue("""
                 SELECT COUNT(DISTINCT track_key)
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 """);
 
         long uniqueArtists = getLongValue("""
                 SELECT COUNT(DISTINCT artist_key)
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 """);
 
         long uniqueGenres = getLongValue("""
                 SELECT COUNT(DISTINCT genre_key)
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 """);
 
         double skipRate = getDoubleValue("""
@@ -62,12 +62,12 @@ public class MusicInsightService {
                         ),
                         0
                     )
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 """);
 
         double averageCompletionRate = getDoubleValue("""
                 SELECT COALESCE(AVG(completion_rate), 0)
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 WHERE completion_rate IS NOT NULL
                 """);
 
@@ -76,8 +76,8 @@ public class MusicInsightService {
                     a.artist_name AS "artistName",
                     COUNT(f.fact_id) AS "totalPlays",
                     ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_artist a ON f.artist_key = a.artist_key
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
                 GROUP BY a.artist_name
                 ORDER BY "totalPlays" DESC, "totalMinutes" DESC
                 LIMIT 1
@@ -88,8 +88,8 @@ public class MusicInsightService {
                     t.track_name AS "trackName",
                     COUNT(f.fact_id) AS "totalPlays",
                     ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_track t ON f.track_key = t.track_key
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_track t ON f.track_key = t.track_key
                 GROUP BY t.track_name
                 ORDER BY "totalPlays" DESC, "totalMinutes" DESC
                 LIMIT 1
@@ -100,8 +100,8 @@ public class MusicInsightService {
                     g.genre_name AS "genreName",
                     COUNT(f.fact_id) AS "totalPlays",
                     ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_genre g ON f.genre_key = g.genre_key
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_genre g ON f.genre_key = g.genre_key
                 GROUP BY g.genre_name
                 ORDER BY "totalPlays" DESC, "totalMinutes" DESC
                 LIMIT 1
@@ -112,8 +112,8 @@ public class MusicInsightService {
                     t.part_of_day AS "partOfDay",
                     COUNT(f.fact_id) AS "totalPlays",
                     ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_time t ON f.time_key = t.time_key
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_time t ON f.time_key = t.time_key
                 GROUP BY t.part_of_day
                 ORDER BY "totalPlays" DESC, "totalMinutes" DESC
                 LIMIT 1

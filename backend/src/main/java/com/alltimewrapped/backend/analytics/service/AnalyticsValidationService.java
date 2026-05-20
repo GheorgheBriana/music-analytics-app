@@ -18,19 +18,19 @@ public class AnalyticsValidationService {
 
         long operationalRecords = getLongValue("""
                 SELECT COUNT(*)
-                FROM listening_record
+                FROM oltp.listening_records
                 """);
 
         long warehouseFacts = getLongValue("""
                 SELECT COUNT(*)
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 """);
 
         long duplicateFacts = getLongValue("""
                 SELECT COUNT(*)
                 FROM (
                     SELECT original_listening_record_id
-                    FROM dw_fact_listening_event
+                    FROM dw.dw_fact_listening_event
                     GROUP BY original_listening_record_id
                     HAVING COUNT(*) > 1
                 ) duplicates
@@ -38,40 +38,40 @@ public class AnalyticsValidationService {
 
         long unknownArtists = getLongValue("""
                 SELECT COUNT(*)
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_artist a ON f.artist_key = a.artist_key
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
                 WHERE a.original_artist_id = -1
                 """);
 
         long unknownAlbums = getLongValue("""
                 SELECT COUNT(*)
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_album a ON f.album_key = a.album_key
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_album a ON f.album_key = a.album_key
                 WHERE a.original_album_id = -1
                 """);
 
         long unknownGenres = getLongValue("""
                 SELECT COUNT(*)
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_genre g ON f.genre_key = g.genre_key
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_genre g ON f.genre_key = g.genre_key
                 WHERE g.original_genre_id = -1
                 """);
 
         long factsWithoutDate = getLongValue("""
                 SELECT COUNT(*)
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 WHERE date_key IS NULL
                 """);
 
         long factsWithoutTime = getLongValue("""
                 SELECT COUNT(*)
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 WHERE time_key IS NULL
                 """);
 
         long factsWithoutTrack = getLongValue("""
                 SELECT COUNT(*)
-                FROM dw_fact_listening_event
+                FROM dw.dw_fact_listening_event
                 WHERE track_key IS NULL
                 """);
 

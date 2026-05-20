@@ -1,0 +1,66 @@
+-- Sursa SQL pentru Proiect DWBI
+-- Contine: scheme, partiții, indecși, materialized views
+
+-- 1. Separarea schemelor
+CREATE SCHEMA IF NOT EXISTS oltp;
+CREATE SCHEMA IF NOT EXISTS dw;
+
+-- 2. Creare tabel de fapte cu PARTITIONARE (RANGE pe date_key)
+DROP TABLE IF EXISTS dw.dw_fact_listening_event CASCADE;
+
+CREATE TABLE dw.dw_fact_listening_event (
+    fact_id BIGSERIAL,
+    original_listening_record_id BIGINT NOT NULL,
+    user_key BIGINT NOT NULL,
+    track_key BIGINT NOT NULL,
+    artist_key BIGINT NOT NULL,
+    album_key BIGINT NOT NULL,
+    genre_key BIGINT NOT NULL,
+    date_key BIGINT NOT NULL,
+    time_key BIGINT NOT NULL,
+    platform_key BIGINT NOT NULL,
+    source_key BIGINT NOT NULL,
+    ms_played BIGINT NOT NULL,
+    minutes_played DOUBLE PRECISION NOT NULL,
+    play_count INTEGER NOT NULL,
+    skipped BOOLEAN,
+    completion_rate DOUBLE PRECISION,
+    PRIMARY KEY (fact_id, date_key)
+) PARTITION BY RANGE (date_key);
+
+-- 3. Definire partiții (ani)
+CREATE TABLE dw.dw_fact_listening_event_2023 PARTITION OF dw.dw_fact_listening_event
+    FOR VALUES FROM (20230101) TO (20240101);
+
+CREATE TABLE dw.dw_fact_listening_event_2024 PARTITION OF dw.dw_fact_listening_event
+    FOR VALUES FROM (20240101) TO (20250101);
+
+CREATE TABLE dw.dw_fact_listening_event_2025 PARTITION OF dw.dw_fact_listening_event
+    FOR VALUES FROM (20250101) TO (20260101);
+
+CREATE TABLE dw.dw_fact_listening_event_default PARTITION OF dw.dw_fact_listening_event DEFAULT;
+
+-- 4. Indecși specifici
+CREATE INDEX idx_dw_fact_date ON dw.dw_fact_listening_event(date_key);
+CREATE INDEX idx_dw_fact_artist ON dw.dw_fact_listening_event(artist_key);
+CREATE INDEX idx_dw_fact_track ON dw.dw_fact_listening_event(track_key);
+CREATE INDEX idx_dw_fact_genre ON dw.dw_fact_listening_event(genre_key);
+
+-- 5. Crearea Vederilor Materializate pentru rapoarte BI
+DROP MATERIALIZED VIEW IF EXISTS dw.mv_monthly_listening;
+CREATE MATERIALIZED VIEW dw.mv_monthly_listening AS
+SELECT
+    d.year AS year,
+    d.month AS month,
+    d.month_name AS month_name,
+    COUNT(f.fact_id) AS total_plays,
+    ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS total_minutes
+FROM dw.dw_fact_listening_event f
+JOIN dw.dw_dim_date d ON f.date_key = d.date_key
+GROUP BY d.year, d.month, d.month_name
+ORDER BY d.year, d.month;
+
+-- (vezi fisierul schema.sql / dw_init.sql pentru restul vederilor)
+
+-- 6. Verificarea utilizării partiției (EXPLAIN)
+-- EXPLAIN ANALYZE SELECT * FROM dw.dw_fact_listening_event WHERE date_key BETWEEN 20240101 AND 20240531;

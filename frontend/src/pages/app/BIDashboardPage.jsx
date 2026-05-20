@@ -39,6 +39,7 @@ function BIDashboardPage() {
     const [reports, setReports] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [selectedYear, setSelectedYear] = useState(null)
 
     useEffect(() => {
         async function loadReports() {
@@ -109,24 +110,72 @@ function BIDashboardPage() {
     }
 
     function renderMonthlyListeningChart() {
-        const data = reports?.monthlyListening || []
+        const rawData = reports?.monthlyListening || []
 
-        if (data.length === 0) {
+        if (rawData.length === 0) {
             return renderEmpty('No monthly listening data available yet.')
         }
 
+        if (selectedYear) {
+            const data = rawData.filter(d => d.year === selectedYear)
+            return (
+                <div className="chart-box">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <h3>Listening evolution - {selectedYear}</h3>
+                        <button 
+                            style={{ padding: '6px 12px', background: '#282828', color: 'white', border: '1px solid #404040', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                            onClick={() => setSelectedYear(null)}
+                            onMouseOver={(e) => e.currentTarget.style.background = '#3e3e3e'}
+                            onMouseOut={(e) => e.currentTarget.style.background = '#282828'}
+                        >
+                            &larr; Back to all years
+                        </button>
+                    </div>
+                    <ResponsiveContainer width="100%" height={280}>
+                        <LineChart data={data}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                            <XAxis dataKey="monthName" stroke="#a3a3a3" fontSize={12} tickMargin={10} />
+                            <YAxis stroke="#a3a3a3" fontSize={12} tickFormatter={(val) => formatNumber(val)} />
+                            <Tooltip contentStyle={{ backgroundColor: '#282828', border: 'none', borderRadius: '8px' }} />
+                            <Line type="monotone" name="Total Minutes" dataKey="totalMinutes" stroke="#1db954" strokeWidth={3} activeDot={{ r: 6 }} />
+                            <Line type="monotone" name="Total Plays" dataKey="totalPlays" stroke="#8b5cf6" strokeWidth={3} activeDot={{ r: 6 }} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            )
+        }
+
+        const yearlyDataMap = new Map()
+        rawData.forEach(d => {
+            const y = d.year
+            if (!yearlyDataMap.has(y)) {
+                yearlyDataMap.set(y, { year: y, totalPlays: 0, totalMinutes: 0 })
+            }
+            const agg = yearlyDataMap.get(y)
+            agg.totalPlays += Number(d.totalPlays || 0)
+            agg.totalMinutes += Number(d.totalMinutes || 0)
+        })
+        const yearlyData = Array.from(yearlyDataMap.values()).sort((a, b) => a.year - b.year)
+
         return (
-            <div className="chart-box">
-                <h3>Monthly listening evolution</h3>
+            <div className="chart-box" style={{ cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <h3>Yearly listening overview</h3>
+                    <span style={{ fontSize: '12px', color: '#1db954', fontWeight: 'bold' }}>Click a bar to drill down</span>
+                </div>
                 <ResponsiveContainer width="100%" height={280}>
-                    <LineChart data={data}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="monthName" />
-                        <YAxis />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="totalMinutes" stroke="#1db954" strokeWidth={3} />
-                        <Line type="monotone" dataKey="totalPlays" stroke="#8b5cf6" strokeWidth={3} />
-                    </LineChart>
+                    <BarChart data={yearlyData} onClick={(e) => {
+                        if (e && e.activePayload && e.activePayload.length > 0) {
+                            setSelectedYear(e.activePayload[0].payload.year)
+                        }
+                    }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                        <XAxis dataKey="year" stroke="#a3a3a3" fontSize={12} tickMargin={10} />
+                        <YAxis stroke="#a3a3a3" fontSize={12} tickFormatter={(val) => formatNumber(val)} />
+                        <Tooltip cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }} contentStyle={{ backgroundColor: '#282828', border: 'none', borderRadius: '8px' }} />
+                        <Bar dataKey="totalMinutes" name="Total Minutes" fill="#1db954" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="totalPlays" name="Total Plays" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
                 </ResponsiveContainer>
             </div>
         )

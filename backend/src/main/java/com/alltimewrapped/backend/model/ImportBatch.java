@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "import_batches")
+@Table(schema = "oltp", name = "import_batches")
 @Getter
 @Setter
 @NoArgsConstructor

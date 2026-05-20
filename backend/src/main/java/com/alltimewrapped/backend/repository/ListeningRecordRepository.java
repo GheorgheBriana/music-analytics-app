@@ -317,10 +317,10 @@ public interface ListeningRecordRepository extends JpaRepository<ListeningRecord
         @Query(
                 value = """
                         SELECT lr.*
-                        FROM listening_records lr
+                        FROM oltp.listening_records lr
                         WHERE NOT EXISTS (
                         SELECT 1
-                        FROM dw_fact_listening_event f
+                        FROM dw.dw_fact_listening_event f
                         WHERE f.original_listening_record_id = lr.id
                         )
                         ORDER BY lr.id

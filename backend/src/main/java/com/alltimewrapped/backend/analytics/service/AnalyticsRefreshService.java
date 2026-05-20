@@ -224,15 +224,19 @@ public class AnalyticsRefreshService {
         return dwDimDateRepository.findByFullDate(fullDate)
                 .orElseGet(() -> {
                     int month = fullDate.getMonthValue();
+                    int year = fullDate.getYear();
+                    int day = fullDate.getDayOfMonth();
+                    Long smartDateKey = (long) (year * 10000 + month * 100 + day);
 
                     return dwDimDateRepository.save(
                             DwDimDate.builder()
+                                    .dateKey(smartDateKey)
                                     .fullDate(fullDate)
-                                    .day(fullDate.getDayOfMonth())
+                                    .day(day)
                                     .month(month)
                                     .monthName(fullDate.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH))
                                     .quarter(((month - 1) / 3) + 1)
-                                    .year(fullDate.getYear())
+                                    .year(year)
                                     .dayOfWeek(fullDate.getDayOfWeek().getValue())
                                     .dayName(fullDate.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH))
                                     .isWeekend(fullDate.getDayOfWeek().getValue() >= 6)

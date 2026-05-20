@@ -23,8 +23,8 @@ public class AdvancedAnalyticsService {
                         d.month_name AS month_name,
                         COUNT(f.fact_id) AS total_plays,
                         COALESCE(SUM(f.minutes_played), 0) AS total_minutes
-                    FROM dw_fact_listening_event f
-                    JOIN dw_dim_date d ON f.date_key = d.date_key
+                    FROM dw.dw_fact_listening_event f
+                    JOIN dw.dw_dim_date d ON f.date_key = d.date_key
                     GROUP BY d.year, d.month, d.month_name
                 ),
                 monthly_with_previous AS (
@@ -71,9 +71,9 @@ public class AdvancedAnalyticsService {
                         g.genre_name AS genre_name,
                         COUNT(f.fact_id) AS total_plays,
                         COALESCE(SUM(f.minutes_played), 0) AS total_minutes
-                    FROM dw_fact_listening_event f
-                    JOIN dw_dim_date d ON f.date_key = d.date_key
-                    JOIN dw_dim_genre g ON f.genre_key = g.genre_key
+                    FROM dw.dw_fact_listening_event f
+                    JOIN dw.dw_dim_date d ON f.date_key = d.date_key
+                    JOIN dw.dw_dim_genre g ON f.genre_key = g.genre_key
                     GROUP BY d.year, d.month, d.month_name, g.genre_name
                 ),
                 ranked_genres AS (
@@ -115,8 +115,8 @@ public class AdvancedAnalyticsService {
                     ROUND((COUNT(f.fact_id) * 1.0 / NULLIF(COUNT(DISTINCT f.track_key), 0))::numeric, 2) AS "repeatIntensity",
                     ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes",
                     ROUND(AVG(f.completion_rate)::numeric, 3) AS "averageCompletionRate"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_artist a ON f.artist_key = a.artist_key
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
                 GROUP BY a.artist_name
                 HAVING COUNT(f.fact_id) >= 3
                 ORDER BY "repeatIntensity" DESC, "totalPlays" DESC

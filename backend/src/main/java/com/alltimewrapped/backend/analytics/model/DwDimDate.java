@@ -6,8 +6,7 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(
-        name = "dw_dim_date",
+@Table(schema = "dw", name = "dw_dim_date",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_dw_dim_date_full_date", columnNames = "full_date")
         }
@@ -20,7 +19,6 @@ import java.time.LocalDate;
 public class DwDimDate {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long dateKey;
 
     @Column(name = "full_date", nullable = false)

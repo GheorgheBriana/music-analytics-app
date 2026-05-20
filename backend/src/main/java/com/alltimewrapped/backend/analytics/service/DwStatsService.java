@@ -18,27 +18,27 @@ public class DwStatsService {
         Map<String, Object> summary = new LinkedHashMap<>();
 
         Long totalEvents = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM dw_fact_listening_event",
+                "SELECT COUNT(*) FROM dw.dw_fact_listening_event",
                 Long.class
         );
 
         Double totalMinutes = jdbcTemplate.queryForObject(
-                "SELECT COALESCE(SUM(minutes_played), 0) FROM dw_fact_listening_event",
+                "SELECT COALESCE(SUM(minutes_played), 0) FROM dw.dw_fact_listening_event",
                 Double.class
         );
 
         Long uniqueTracks = jdbcTemplate.queryForObject(
-                "SELECT COUNT(DISTINCT track_key) FROM dw_fact_listening_event",
+                "SELECT COUNT(DISTINCT track_key) FROM dw.dw_fact_listening_event",
                 Long.class
         );
 
         Long uniqueArtists = jdbcTemplate.queryForObject(
-                "SELECT COUNT(DISTINCT artist_key) FROM dw_fact_listening_event",
+                "SELECT COUNT(DISTINCT artist_key) FROM dw.dw_fact_listening_event",
                 Long.class
         );
 
         Long uniqueGenres = jdbcTemplate.queryForObject(
-                "SELECT COUNT(DISTINCT genre_key) FROM dw_fact_listening_event",
+                "SELECT COUNT(DISTINCT genre_key) FROM dw.dw_fact_listening_event",
                 Long.class
         );
 
@@ -54,15 +54,12 @@ public class DwStatsService {
     public List<Map<String, Object>> getMonthlyListening() {
         String sql = """
                 SELECT
-                    d.year AS "year",
-                    d.month AS "month",
-                    d.month_name AS "monthName",
-                    COUNT(f.fact_id) AS "totalPlays",
-                    ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_date d ON f.date_key = d.date_key
-                GROUP BY d.year, d.month, d.month_name
-                ORDER BY d.year, d.month
+                    year AS "year",
+                    month AS "month",
+                    month_name AS "monthName",
+                    total_plays AS "totalPlays",
+                    total_minutes AS "totalMinutes"
+                FROM dw.mv_monthly_listening
                 """;
 
         return jdbcTemplate.queryForList(sql);
@@ -71,13 +68,10 @@ public class DwStatsService {
     public List<Map<String, Object>> getPartOfDayStats() {
         String sql = """
                 SELECT
-                    t.part_of_day AS "partOfDay",
-                    COUNT(f.fact_id) AS "totalPlays",
-                    ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_time t ON f.time_key = t.time_key
-                GROUP BY t.part_of_day
-                ORDER BY "totalMinutes" DESC
+                    part_of_day AS "partOfDay",
+                    total_plays AS "totalPlays",
+                    total_minutes AS "totalMinutes"
+                FROM dw.mv_part_of_day_stats
                 """;
 
         return jdbcTemplate.queryForList(sql);
@@ -86,16 +80,10 @@ public class DwStatsService {
     public List<Map<String, Object>> getWeekendVsWeekdayStats() {
         String sql = """
                 SELECT
-                    CASE
-                        WHEN d.is_weekend = true THEN 'weekend'
-                        ELSE 'weekday'
-                    END AS "dayType",
-                    COUNT(f.fact_id) AS "totalPlays",
-                    ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_date d ON f.date_key = d.date_key
-                GROUP BY d.is_weekend
-                ORDER BY "totalMinutes" DESC
+                    day_type AS "dayType",
+                    total_plays AS "totalPlays",
+                    total_minutes AS "totalMinutes"
+                FROM dw.mv_weekend_vs_weekday_stats
                 """;
 
         return jdbcTemplate.queryForList(sql);
@@ -104,13 +92,10 @@ public class DwStatsService {
     public List<Map<String, Object>> getTopGenres() {
         String sql = """
                 SELECT
-                    g.genre_name AS "genreName",
-                    COUNT(f.fact_id) AS "totalPlays",
-                    ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_genre g ON f.genre_key = g.genre_key
-                GROUP BY g.genre_name
-                ORDER BY "totalMinutes" DESC
+                    genre_name AS "genreName",
+                    total_plays AS "totalPlays",
+                    total_minutes AS "totalMinutes"
+                FROM dw.mv_top_genres
                 LIMIT 10
                 """;
 
@@ -124,8 +109,8 @@ public class DwStatsService {
                     COUNT(f.fact_id) AS "totalPlays",
                     ROUND(AVG(f.completion_rate)::numeric, 3) AS "averageCompletionRate",
                     ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_artist a ON f.artist_key = a.artist_key
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
                 WHERE f.completion_rate IS NOT NULL
                 GROUP BY a.artist_name
                 HAVING COUNT(f.fact_id) >= 3
@@ -142,8 +127,8 @@ public class DwStatsService {
                     p.platform_name AS "platformName",
                     COUNT(f.fact_id) AS "totalPlays",
                     ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_platform p ON f.platform_key = p.platform_key
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_platform p ON f.platform_key = p.platform_key
                 GROUP BY p.platform_name
                 ORDER BY "totalMinutes" DESC
                 """;
@@ -154,16 +139,12 @@ public class DwStatsService {
     public List<Map<String, Object>> getListeningHeatmap() {
         String sql = """
                 SELECT
-                    d.day_of_week AS "dayOfWeek",
-                    d.day_name AS "dayName",
-                    t.hour AS "hour",
-                    COUNT(f.fact_id) AS "totalPlays",
-                    ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_date d ON f.date_key = d.date_key
-                JOIN dw_dim_time t ON f.time_key = t.time_key
-                GROUP BY d.day_of_week, d.day_name, t.hour
-                ORDER BY d.day_of_week, t.hour
+                    day_of_week AS "dayOfWeek",
+                    day_name AS "dayName",
+                    hour AS "hour",
+                    total_plays AS "totalPlays",
+                    total_minutes AS "totalMinutes"
+                FROM dw.mv_listening_heatmap
                 """;
 
         return jdbcTemplate.queryForList(sql);
@@ -172,16 +153,13 @@ public class DwStatsService {
     public Map<String, Object> getPeakListeningTime() {
         String sql = """
                 SELECT
-                    d.day_of_week AS "dayOfWeek",
-                    d.day_name AS "dayName",
-                    t.hour AS "hour",
-                    COUNT(f.fact_id) AS "totalPlays",
-                    ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes"
-                FROM dw_fact_listening_event f
-                JOIN dw_dim_date d ON f.date_key = d.date_key
-                JOIN dw_dim_time t ON f.time_key = t.time_key
-                GROUP BY d.day_of_week, d.day_name, t.hour
-                ORDER BY "totalPlays" DESC, "totalMinutes" DESC
+                    day_of_week AS "dayOfWeek",
+                    day_name AS "dayName",
+                    hour AS "hour",
+                    total_plays AS "totalPlays",
+                    total_minutes AS "totalMinutes"
+                FROM dw.mv_listening_heatmap
+                ORDER BY total_plays DESC, total_minutes DESC
                 LIMIT 1
                 """;
 
@@ -270,5 +248,13 @@ public class DwStatsService {
                 + ", especially on "
                 + dominantDayType
                 + " days.";
+    }
+
+    public void refreshMaterializedViews() {
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW dw.mv_monthly_listening");
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW dw.mv_part_of_day_stats");
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW dw.mv_weekend_vs_weekday_stats");
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW dw.mv_top_genres");
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW dw.mv_listening_heatmap");
     }
 }
