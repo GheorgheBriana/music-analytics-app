@@ -77,6 +77,11 @@ public class AnalyticsController {
         return dwStatsService.getTopGenres(userId);
     }
 
+    @GetMapping("/reports/rollup-listening")
+    public List<Map<String, Object>> getRollupListening(@RequestParam(required = false) Long userId) {
+        return advancedAnalyticsService.getRollupListening(userId);
+    }
+
     @GetMapping("/reports/completion-rate-by-artist")
     public List<Map<String, Object>> getCompletionRateByArtist(@RequestParam(required = false) Long userId) {
         return dwStatsService.getCompletionRateByArtist(userId);

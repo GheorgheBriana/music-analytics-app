@@ -196,4 +196,38 @@ public class AdvancedAnalyticsService {
 
         return result;
     }
+
+    public List<Map<String, Object>> getRollupListening(Long userId) {
+        String userFilter = userId != null
+                ? " JOIN dw.dw_dim_user u ON f.user_key = u.user_key WHERE u.original_user_id = ? "
+                : " WHERE 1=1 ";
+
+        String sql = """
+                SELECT
+                    d.year                                                AS "year",
+                    d.month                                               AS "month",
+                    d.month_name                                          AS "monthName",
+                    g.genre_name                                          AS "genreName",
+                    COUNT(f.fact_id)                                      AS "totalPlays",
+                    ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS "totalMinutes",
+                    GROUPING(d.year)                                      AS "isYearSubtotal",
+                    GROUPING(d.month)                                     AS "isMonthSubtotal",
+                    GROUPING(g.genre_name)                                AS "isGenreSubtotal"
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_date  d ON f.date_key  = d.date_key
+                JOIN dw.dw_dim_genre g ON f.genre_key = g.genre_key
+                """ + userFilter + """
+                GROUP BY ROLLUP(d.year, (d.month, d.month_name), g.genre_name)
+                ORDER BY
+                    d.year       NULLS LAST,
+                    d.month      NULLS LAST,
+                    g.genre_name NULLS LAST
+                """;
+
+        if (userId != null) {
+            return jdbcTemplate.queryForList(sql, userId);
+        }
+
+        return jdbcTemplate.queryForList(sql);
+    }
 }
