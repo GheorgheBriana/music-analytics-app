@@ -11,6 +11,8 @@ import com.alltimewrapped.backend.repository.ListeningRecordRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.JsonParser;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +24,11 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -34,6 +40,9 @@ public class ImportService {
     private final TrackService trackService;
     private final AppUserRepository appUserRepository;
     private final ListeningRecordRepository listeningRecordRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final ObjectMapper objectMapper = createObjectMapper();
 
@@ -147,6 +156,15 @@ public class ImportService {
         int duplicateRecords = 0;
         int skippedRecords = 0;
 
+        // Local caches — avoid repeated DB lookups for same track/artist/album during import
+        Map<String, Track> trackCache = new HashMap<>();
+        Map<String, com.alltimewrapped.backend.model.Artist> artistCache = new HashMap<>();
+        Map<String, com.alltimewrapped.backend.model.Album> albumCache = new HashMap<>();
+
+        // Pre-load existing record keys for this user — avoids one SELECT EXISTS per record
+        // Key format: trackId:playedAtEpochMs
+        Set<String> existingKeys = buildExistingKeysSet(user.getId());
+
         List<ListeningRecord> batch = new ArrayList<>();
 
         for (SpotifyListeningDTO dto : records) {
@@ -170,13 +188,18 @@ public class ImportService {
                     dto.getSpotify_track_uri(),
                     dto.getMaster_metadata_track_name(),
                     dto.getMaster_metadata_album_artist_name(),
-                    dto.getMaster_metadata_album_album_name()
+                    dto.getMaster_metadata_album_album_name(),
+                    trackCache,
+                    artistCache,
+                    albumCache
             );
 
-            if (isDuplicateRecord(user, track, playedAt)) {
+            String duplicateKey = track.getId() + ":" + playedAt.toInstant().toEpochMilli();
+            if (existingKeys.contains(duplicateKey)) {
                 duplicateRecords++;
                 continue;
             }
+            existingKeys.add(duplicateKey); // prevent duplicates within same import batch
 
             ListeningRecord record = buildRecord(dto, user, track, playedAt);
             batch.add(record);
@@ -210,6 +233,8 @@ public class ImportService {
     // saves the current batch and prepares it for the next records
     private void saveBatch(List<ListeningRecord> batch) {
         listeningRecordRepository.saveAll(batch);
+        entityManager.flush();
+        entityManager.clear();
         log.debug("Saved batch of {} records", batch.size());
         batch.clear();
     }
@@ -235,12 +260,12 @@ public class ImportService {
         return record;
     }
 
-    // checks if the listening record was already imported
-    private boolean isDuplicateRecord(AppUser user, Track track, OffsetDateTime playedAt) {
-        return listeningRecordRepository.existsByUserIdAndTrackIdAndPlayedAt(
-                user.getId(),
-                track.getId(),
-                playedAt
-        );
+    // Pre-loads all existing (trackId:playedAtEpochMs) pairs for a user into a Set.
+    // Replaces per-record SELECT EXISTS with a single query + in-memory lookup.
+    private Set<String> buildExistingKeysSet(Long userId) {
+        return listeningRecordRepository.findTrackIdAndPlayedAtByUserId(userId)
+                .stream()
+                .map(row -> row[0] + ":" + row[1])
+                .collect(java.util.stream.Collectors.toCollection(HashSet::new));
     }
 }

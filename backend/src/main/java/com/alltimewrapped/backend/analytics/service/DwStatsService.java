@@ -97,8 +97,8 @@ public class DwStatsService {
                      "JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key " +
                      (userId != null ? "JOIN dw.dw_dim_user u ON f.user_key = u.user_key WHERE u.original_user_id = ? AND " : "WHERE ") +
                      "f.completion_rate IS NOT NULL " +
-                     "GROUP BY a.artist_name HAVING COUNT(f.fact_id) >= 3 " +
-                     "ORDER BY \"averageCompletionRate\" DESC LIMIT 10";
+                     "GROUP BY a.artist_name HAVING COUNT(f.fact_id) >= 5 " +
+                     "ORDER BY \"totalPlays\" DESC LIMIT 10";
         return jdbcTemplate.queryForList(sql, params(userId));
     }
 
@@ -191,10 +191,10 @@ public class DwStatsService {
     }
 
     public void refreshMaterializedViews() {
-        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW dw.mv_monthly_listening");
-        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW dw.mv_part_of_day_stats");
-        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW dw.mv_weekend_vs_weekday_stats");
-        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW dw.mv_top_genres");
-        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW dw.mv_listening_heatmap");
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY dw.mv_monthly_listening");
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY dw.mv_part_of_day_stats");
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY dw.mv_weekend_vs_weekday_stats");
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY dw.mv_top_genres");
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY dw.mv_listening_heatmap");
     }
 }

@@ -12,7 +12,8 @@ import {
     Tooltip,
     XAxis,
     YAxis,
-    Legend
+    Legend,
+    LabelList
 } from 'recharts'
 import {
     getAdvancedOverview,
@@ -46,6 +47,11 @@ function BIDashboardPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [selectedYear, setSelectedYear] = useState(null)
+    const [selectedRankingYear, setSelectedRankingYear] = useState(null)
+
+    const [yearlyMetric, setYearlyMetric] = useState('hours')
+    const [monthlyMetric, setMonthlyMetric] = useState('hours')
+    const [monthlyMode, setMonthlyMode] = useState('monthly')
 
     useEffect(() => {
         async function loadReports() {
@@ -161,11 +167,83 @@ function BIDashboardPage() {
         }
 
         if (selectedYear) {
-            const data = rawData.filter(d => d.year === selectedYear)
+            const data = rawData
+                .filter(d => d.year === selectedYear)
+                .sort((a, b) => a.month - b.month)
+                .map(d => ({
+                    ...d,
+                    listeningHours: Number((d.totalMinutes / 60).toFixed(1))
+                }))
+
+            const fullYearData = []
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+            
+            let cumulativeHours = 0
+            let cumulativePlays = 0
+
+            for (let i = 1; i <= 12; i++) {
+                const existingMonth = data.find(d => d.month === i)
+                
+                let currentHours = 0
+                let currentPlays = 0
+
+                if (existingMonth) {
+                    currentHours = existingMonth.listeningHours
+                    currentPlays = existingMonth.totalPlays
+                }
+
+                cumulativeHours += currentHours
+                cumulativePlays += currentPlays
+
+                fullYearData.push({
+                    month: i,
+                    monthName: monthNames[i-1],
+                    year: selectedYear,
+                    listeningHours: monthlyMode === 'cumulative' ? Number(cumulativeHours.toFixed(1)) : currentHours,
+                    totalPlays: monthlyMode === 'cumulative' ? cumulativePlays : currentPlays,
+                    actualHours: currentHours,
+                    actualPlays: currentPlays
+                })
+            }
+
+            const dataKey = monthlyMetric === 'hours' ? 'listeningHours' : 'totalPlays'
+            const lineName = monthlyMetric === 'hours' ? 'Total Hours' : 'Total Plays'
+            const strokeColor = monthlyMetric === 'hours' ? '#1db954' : '#8b5cf6'
+
+            const CustomTooltipMonthly = ({ active, payload }) => {
+                if (active && payload && payload.length) {
+                    const item = payload[0].payload
+                    return (
+                        <div style={{ backgroundColor: 'rgba(23, 25, 35, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '12px', color: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                            <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '4px' }}>{item.monthName} {item.year}</p>
+                            <p style={{ margin: '4px 0', color: '#1db954', fontSize: '13px' }}>
+                                {monthlyMode === 'cumulative' ? 'Cumulative hours' : 'Total hours'}: <strong>{item.listeningHours}h</strong>
+                            </p>
+                            <p style={{ margin: 0, color: '#8b5cf6', fontSize: '13px' }}>
+                                {monthlyMode === 'cumulative' ? 'Cumulative plays' : 'Total plays'}: <strong>{formatNumber(item.totalPlays)}</strong>
+                            </p>
+                        </div>
+                    )
+                }
+                return null
+            }
+
             return (
                 <div className="chart-box" style={{ gridColumn: '1 / -1' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                        <h3>Listening evolution - {selectedYear}</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                        <div>
+                            <h3 style={{ marginBottom: '8px' }}>Monthly Listening Evolution - {selectedYear}</h3>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px' }}>
+                                    <button onClick={() => setMonthlyMetric('hours')} style={{ padding: '4px 12px', fontSize: '11px', border: 'none', background: monthlyMetric === 'hours' ? '#282828' : 'transparent', color: monthlyMetric === 'hours' ? '#1db954' : '#a3a3a3', borderRadius: '4px', cursor: 'pointer' }}>Hours</button>
+                                    <button onClick={() => setMonthlyMetric('plays')} style={{ padding: '4px 12px', fontSize: '11px', border: 'none', background: monthlyMetric === 'plays' ? '#282828' : 'transparent', color: monthlyMetric === 'plays' ? '#8b5cf6' : '#a3a3a3', borderRadius: '4px', cursor: 'pointer' }}>Plays</button>
+                                </div>
+                                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px' }}>
+                                    <button onClick={() => setMonthlyMode('monthly')} style={{ padding: '4px 12px', fontSize: '11px', border: 'none', background: monthlyMode === 'monthly' ? '#282828' : 'transparent', color: monthlyMode === 'monthly' ? '#fff' : '#a3a3a3', borderRadius: '4px', cursor: 'pointer' }}>Monthly</button>
+                                    <button onClick={() => setMonthlyMode('cumulative')} style={{ padding: '4px 12px', fontSize: '11px', border: 'none', background: monthlyMode === 'cumulative' ? '#282828' : 'transparent', color: monthlyMode === 'cumulative' ? '#fff' : '#a3a3a3', borderRadius: '4px', cursor: 'pointer' }}>Cumulative</button>
+                                </div>
+                            </div>
+                        </div>
                         <button 
                             className="tab-btn active"
                             style={{ padding: '6px 12px', fontSize: '12px' }}
@@ -175,14 +253,13 @@ function BIDashboardPage() {
                         </button>
                     </div>
                     <ResponsiveContainer width="100%" height={320}>
-                        <LineChart data={data}>
+                        <LineChart data={fullYearData} margin={{ bottom: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                            <XAxis dataKey="monthName" stroke="#a3a3a3" fontSize={12} tickMargin={10} />
+                            <XAxis dataKey="monthName" stroke="#a3a3a3" fontSize={11} tickMargin={10} interval={0} angle={-25} textAnchor="end" height={60} />
                             <YAxis stroke="#a3a3a3" fontSize={12} tickFormatter={(val) => formatNumber(val)} />
-                            <Tooltip contentStyle={{ backgroundColor: 'rgba(23, 25, 35, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', backdropFilter: 'blur(10px)' }} />
-                            <Line type="monotone" name="Total Minutes" dataKey="totalMinutes" stroke="#1db954" strokeWidth={3} activeDot={{ r: 6 }} />
-                            <Line type="monotone" name="Total Plays" dataKey="totalPlays" stroke="#8b5cf6" strokeWidth={3} activeDot={{ r: 6 }} />
-                            <Legend />
+                            <Tooltip content={<CustomTooltipMonthly />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                            <Line type="monotone" name={lineName} dataKey={dataKey} stroke={strokeColor} strokeWidth={3} activeDot={{ r: 6 }} />
+                            <Legend wrapperStyle={{ bottom: 0 }} />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
@@ -200,14 +277,19 @@ function BIDashboardPage() {
             agg.totalMinutes += Number(d.totalMinutes || 0)
             agg.listeningHours = Number((agg.totalMinutes / 60).toFixed(1))
         })
-        const yearlyData = Array.from(yearlyDataMap.values()).sort((a, b) => a.year - b.year)
+        const yearlyData = Array.from(yearlyDataMap.values())
+            .filter(y => y.totalPlays > 0)
+            .sort((a, b) => a.year - b.year)
 
         const CustomTooltipYearly = ({ active, payload, label }) => {
             if (active && payload && payload.length) {
                 const item = payload[0].payload
+                const currentYear = new Date().getFullYear()
                 return (
                     <div style={{ backgroundColor: 'rgba(23, 25, 35, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '12px', color: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                        <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '4px' }}>Year {label}</p>
+                        <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '4px' }}>
+                            Year {label} {item.year === currentYear ? <span style={{fontSize: '11px', color: '#f59e0b', fontWeight: 'normal'}}>(Partial year)</span> : ''}
+                        </p>
                         <p style={{ margin: '4px 0', color: '#1db954', fontSize: '13px' }}>Hours Listened: <strong>{formatNumber(item.listeningHours, 1)}</strong></p>
                         <p style={{ margin: 0, color: '#8b5cf6', fontSize: '13px' }}>Total Plays: <strong>{formatNumber(item.totalPlays)}</strong></p>
                     </div>
@@ -216,11 +298,21 @@ function BIDashboardPage() {
             return null
         }
 
+        const yearlyDataKey = yearlyMetric === 'hours' ? 'listeningHours' : 'totalPlays'
+        const yearlyBarName = yearlyMetric === 'hours' ? 'Listening Hours' : 'Total Plays'
+        const yearlyBarColor = yearlyMetric === 'hours' ? '#1db954' : '#8b5cf6'
+
         return (
             <div className="chart-box" style={{ gridColumn: '1 / -1', cursor: 'pointer' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <h3>Yearly listening overview</h3>
-                    <span style={{ fontSize: '12px', color: '#a3a3a3', fontWeight: '500' }}>Click a bar to drill down into months</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                    <div>
+                        <h3>Total Listening by Year</h3>
+                        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px', marginTop: '8px', width: 'fit-content' }}>
+                            <button onClick={() => setYearlyMetric('hours')} style={{ padding: '4px 12px', fontSize: '11px', border: 'none', background: yearlyMetric === 'hours' ? '#282828' : 'transparent', color: yearlyMetric === 'hours' ? '#1db954' : '#a3a3a3', borderRadius: '4px', cursor: 'pointer' }}>Hours</button>
+                            <button onClick={() => setYearlyMetric('plays')} style={{ padding: '4px 12px', fontSize: '11px', border: 'none', background: yearlyMetric === 'plays' ? '#282828' : 'transparent', color: yearlyMetric === 'plays' ? '#8b5cf6' : '#a3a3a3', borderRadius: '4px', cursor: 'pointer' }}>Plays</button>
+                        </div>
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#a3a3a3', fontWeight: '500', marginTop: '4px' }}>Click a bar to drill down into months</span>
                 </div>
                 <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={yearlyData} onClick={(e) => {
@@ -232,7 +324,7 @@ function BIDashboardPage() {
                         <XAxis dataKey="year" stroke="#a3a3a3" fontSize={12} tickMargin={10} axisLine={false} tickLine={false} />
                         <YAxis stroke="#a3a3a3" fontSize={12} tickFormatter={(val) => formatNumber(val)} axisLine={false} tickLine={false} />
                         <Tooltip content={<CustomTooltipYearly />} cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }} />
-                        <Bar dataKey="listeningHours" name="Listening Hours" fill="#1db954" radius={[4, 4, 0, 0]} maxBarSize={60} />
+                        <Bar dataKey={yearlyDataKey} name={yearlyBarName} fill={yearlyBarColor} radius={[4, 4, 0, 0]} maxBarSize={60} />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
@@ -334,13 +426,18 @@ function BIDashboardPage() {
         const data = reports?.monthlyGrowth || []
         if (data.length === 0) return <div className="chart-box" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}><h3>Monthly growth (%)</h3><div style={{ flex: 1, display: 'flex' }}>{renderEmpty('No monthly growth data.')}</div></div>
 
+        const chartData = data.map(d => ({
+            ...d,
+            displayMonth: `${d.monthName?.substring(0,3)} ${d.year}`
+        })).slice(-12)
+
         return (
             <div className="chart-box">
                 <h3>Monthly growth (%)</h3>
                 <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={data}>
+                    <BarChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                        <XAxis dataKey="monthName" stroke="#a3a3a3" fontSize={12} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="displayMonth" stroke="#a3a3a3" fontSize={11} axisLine={false} tickLine={false} />
                         <YAxis stroke="#a3a3a3" fontSize={12} axisLine={false} tickLine={false} />
                         <Tooltip contentStyle={{ backgroundColor: 'rgba(23, 25, 35, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
                         <Bar dataKey="playGrowthPercent" name="Growth %" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={40} />
@@ -391,13 +488,19 @@ function BIDashboardPage() {
         return (
             <div className="chart-box">
                 <h3>Completion Rate by Artist (%)</h3>
-                <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={data.slice(0, 6)}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                        <XAxis dataKey="artistName" stroke="#a3a3a3" fontSize={11} tickMargin={10} axisLine={false} tickLine={false} />
-                        <YAxis stroke="#a3a3a3" fontSize={12} axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={{ backgroundColor: 'rgba(23, 25, 35, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-                        <Bar dataKey="averageCompletionRate" name="Completion %" fill="#1db954" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <ResponsiveContainer width="100%" height={340}>
+                    <BarChart data={data.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 40, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                        <XAxis type="number" stroke="#a3a3a3" fontSize={11} tickMargin={10} axisLine={false} tickLine={false} tick={false} domain={[0, 100]} />
+                        <YAxis dataKey="artistName" type="category" stroke="#a3a3a3" fontSize={12} axisLine={false} tickLine={false} width={100} tickFormatter={(value) => value.length > 12 ? value.substring(0, 12) + '...' : value} />
+                        <Tooltip 
+                            contentStyle={{ backgroundColor: 'rgba(23, 25, 35, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} 
+                            cursor={{ fill: 'rgba(255,255,255,0.05)' }} 
+                            formatter={(value) => [`${value}%`, 'Completion Rate']}
+                        />
+                        <Bar dataKey="averageCompletionRate" name="Completion %" fill="#1db954" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                            <LabelList dataKey="averageCompletionRate" position="right" formatter={(val) => `${val}%`} fill="#a3a3a3" fontSize={11} />
+                        </Bar>
                     </BarChart>
                 </ResponsiveContainer>
             </div>
@@ -405,18 +508,33 @@ function BIDashboardPage() {
     }
 
     function renderArtistRankingEvolution() {
-        const data = reports?.artistRankingEvolution || []
-        if (data.length === 0) return <div className="chart-box" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}><h3>Artist Ranking Evolution</h3><div style={{ flex: 1, display: 'flex' }}>{renderEmpty('No artist ranking data available.')}</div></div>
+        const rawData = reports?.artistRankingEvolution || []
+        if (rawData.length === 0) return <div className="chart-box" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}><h3>Artist Ranking Evolution</h3><div style={{ flex: 1, display: 'flex' }}>{renderEmpty('No artist ranking data available.')}</div></div>
+
+        const years = Array.from(new Set(rawData.map(d => d.year))).sort((a,b) => b - a)
+        const currentYear = selectedRankingYear || (years.length > 0 ? years[0] : null)
+        const data = currentYear ? rawData.filter(d => d.year === currentYear) : rawData
 
         return (
             <div className="chart-box">
-                <h3>Artist Ranking Evolution (Top 3)</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3>Artist Ranking Evolution (Top 3)</h3>
+                    {years.length > 0 && (
+                        <select 
+                            style={{ padding: '4px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', outline: 'none', cursor: 'pointer' }}
+                            value={currentYear}
+                            onChange={(e) => setSelectedRankingYear(Number(e.target.value))}
+                        >
+                            {years.map(y => <option style={{ background: '#282828' }} key={y} value={y}>{y}</option>)}
+                        </select>
+                    )}
+                </div>
                 <p className="chart-description">Showcasing DENSE_RANK() SQL analytics per month</p>
-                <div className="compact-ranking-list" style={{ marginTop: '12px' }}>
-                    {data.slice(0, 9).map((item, index) => (
+                <div className="compact-ranking-list custom-scrollbar" style={{ marginTop: '12px', maxHeight: '250px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {data.map((item, index) => (
                         <div className="compact-ranking-item" key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
                             <span style={{ fontSize: '16px', fontWeight: 'bold', color: item.rankPosition === 1 ? '#f59e0b' : item.rankPosition === 2 ? '#9ca3af' : '#b45309', minWidth: '30px' }}>#{item.rankPosition}</span>
-                            <span style={{ fontSize: '11px', padding: '4px 8px', width: 'auto', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', margin: '0 12px' }}>{item.monthName}</span>
+                            <span style={{ fontSize: '11px', padding: '4px 8px', width: '35px', textAlign: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', margin: '0 12px' }}>{item.monthName?.substring(0, 3)}</span>
                             <div>
                                 <strong style={{ color: '#1db954', fontSize: '14px' }}>{item.artistName}</strong>
                                 <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '2px 0 0 0' }}>{formatNumber(item.totalPlays)} plays</p>

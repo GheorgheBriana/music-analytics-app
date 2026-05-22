@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class TrackService {
@@ -32,6 +34,39 @@ public class TrackService {
         }
 
         return createTrack(null, trackName, artistName, albumName);
+    }
+
+    // Cache-aware version used during bulk import to avoid repeated DB lookups.
+    // trackCache: spotifyTrackUri → Track
+    // artistCache: lowerArtistName → Artist
+    // albumCache: lowerAlbumName → Album
+    @Transactional
+    public Track findOrCreateTrack(
+            String spotifyTrackUri,
+            String trackName,
+            String artistName,
+            String albumName,
+            Map<String, Track> trackCache,
+            Map<String, Artist> artistCache,
+            Map<String, Album> albumCache
+    ) {
+        if (spotifyTrackUri != null && trackCache.containsKey(spotifyTrackUri)) {
+            return trackCache.get(spotifyTrackUri);
+        }
+
+        Track track;
+        if (spotifyTrackUri != null) {
+            track = trackRepository.findBySpotifyTrackUri(spotifyTrackUri)
+                    .map(existing -> ensureOltpRelations(existing, artistName, albumName, artistCache, albumCache))
+                    .orElseGet(() -> createTrack(spotifyTrackUri, trackName, artistName, albumName, artistCache, albumCache));
+        } else {
+            track = createTrack(null, trackName, artistName, albumName, artistCache, albumCache);
+        }
+
+        if (spotifyTrackUri != null) {
+            trackCache.put(spotifyTrackUri, track);
+        }
+        return track;
     }
 
     // Creates and saves a new track with both the old fallback fields and the new OLTP relations.
@@ -60,7 +95,91 @@ public class TrackService {
         return trackRepository.save(track);
     }
 
-    // Makes sure older tracks also receive the new normalized relations when they are found again.
+    // Cache-aware version of createTrack — uses local HashMaps to avoid repeated DB lookups.
+    private Track createTrack(
+            String spotifyTrackUri,
+            String trackName,
+            String artistName,
+            String albumName,
+            Map<String, Artist> artistCache,
+            Map<String, Album> albumCache
+    ) {
+        Track track = new Track();
+
+        String safeTrackName = normalizeValue(trackName, "Unknown Track");
+        String safeArtistName = normalizeValue(artistName, "Unknown Artist");
+        String safeAlbumName = normalizeValue(albumName, "Unknown Album");
+
+        track.setSpotifyTrackUri(spotifyTrackUri);
+        track.setTrackName(safeTrackName);
+        track.setArtistName(safeArtistName);
+        track.setAlbumName(safeAlbumName);
+
+        Album album = findOrCreateAlbumCached(safeAlbumName, albumCache);
+        Artist artist = findOrCreateArtistCached(safeArtistName, artistCache);
+        Genre unknownGenre = findOrCreateGenre("unknown");
+
+        track.setAlbum(album);
+        track.getArtists().add(artist);
+        track.getGenres().add(unknownGenre);
+
+        return trackRepository.save(track);
+    }
+
+    // Cache-aware version of ensureOltpRelations.
+    private Track ensureOltpRelations(
+            Track track,
+            String artistName,
+            String albumName,
+            Map<String, Artist> artistCache,
+            Map<String, Album> albumCache
+    ) {
+        boolean changed = false;
+
+        String safeArtistName = normalizeValue(artistName, track.getArtistName());
+        String safeAlbumName = normalizeValue(albumName, track.getAlbumName());
+
+        if (safeArtistName == null || safeArtistName.isBlank()) safeArtistName = "Unknown Artist";
+        if (safeAlbumName == null || safeAlbumName.isBlank()) safeAlbumName = "Unknown Album";
+
+        if (track.getArtistName() == null || track.getArtistName().isBlank()) {
+            track.setArtistName(safeArtistName);
+            changed = true;
+        }
+        if (track.getAlbumName() == null || track.getAlbumName().isBlank()) {
+            track.setAlbumName(safeAlbumName);
+            changed = true;
+        }
+        if (track.getAlbum() == null) {
+            track.setAlbum(findOrCreateAlbumCached(safeAlbumName, albumCache));
+            changed = true;
+        }
+        if (track.getArtists() == null || track.getArtists().isEmpty()) {
+            track.getArtists().add(findOrCreateArtistCached(safeArtistName, artistCache));
+            changed = true;
+        }
+        if (track.getGenres() == null || track.getGenres().isEmpty()) {
+            track.getGenres().add(findOrCreateGenre("unknown"));
+            changed = true;
+        }
+
+        if (changed) {
+            return trackRepository.save(track);
+        }
+        return track;
+    }
+
+    // Cached artist lookup — avoids repeated findByArtistNameIgnoreCase during bulk import.
+    private Artist findOrCreateArtistCached(String artistName, Map<String, Artist> cache) {
+        String key = artistName.toLowerCase();
+        return cache.computeIfAbsent(key, k -> findOrCreateArtist(artistName));
+    }
+
+    // Cached album lookup — avoids repeated findByAlbumNameIgnoreCase during bulk import.
+    private Album findOrCreateAlbumCached(String albumName, Map<String, Album> cache) {
+        String key = albumName.toLowerCase();
+        return cache.computeIfAbsent(key, k -> findOrCreateAlbum(albumName));
+    }
     private Track ensureOltpRelations(Track track, String artistName, String albumName) {
         boolean changed = false;
 

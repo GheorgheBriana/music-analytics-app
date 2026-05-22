@@ -23,6 +23,15 @@ public interface ListeningRecordRepository extends JpaRepository<ListeningRecord
     // Used during import to avoid saving the same listening event multiple times.
     boolean existsByUserIdAndTrackIdAndPlayedAt(Long userId, Long trackId, OffsetDateTime playedAt);
 
+    // Pre-loads all (trackId, playedAtEpochMs) pairs for a user in one query.
+    // Used to replace per-record SELECT EXISTS with a single bulk load + Set lookup.
+    @Query("""
+            SELECT record.track.id, record.playedAt
+            FROM ListeningRecord record
+            WHERE record.user.id = :userId
+            """)
+    List<Object[]> findTrackIdAndPlayedAtByUserId(@Param("userId") Long userId);
+
     // Used by recommender to check if user already listened to an artist
     boolean existsByUserIdAndTrack_ArtistName(Long userId, String artistName);
 

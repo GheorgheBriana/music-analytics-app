@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.TextStyle;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,6 +47,9 @@ public class AnalyticsRefreshService {
         int insertedFacts = 0;
         int skippedInvalidRecords = 0;
         int recordsWithFallbackDimensions = 0;
+
+        List<DwFactListeningEvent> factBatch = new ArrayList<>();
+        final int FACT_BATCH_SIZE = 500;
 
         Map<String, DwDimUser> userCache = new HashMap<>();
         Map<String, DwDimTrack> trackCache = new HashMap<>();
@@ -110,8 +114,18 @@ public class AnalyticsRefreshService {
                     .completionRate(completionRate)
                     .build();
 
-            dwFactListeningEventRepository.save(fact);
+            factBatch.add(fact);
             insertedFacts++;
+
+            if (factBatch.size() >= FACT_BATCH_SIZE) {
+                dwFactListeningEventRepository.saveAll(factBatch);
+                factBatch.clear();
+            }
+        }
+
+        // flush remaining facts
+        if (!factBatch.isEmpty()) {
+            dwFactListeningEventRepository.saveAll(factBatch);
         }
 
         Map<String, Object> result = new LinkedHashMap<>();

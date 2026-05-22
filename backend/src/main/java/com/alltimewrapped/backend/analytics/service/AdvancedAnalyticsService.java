@@ -58,7 +58,7 @@ public class AdvancedAnalyticsService {
                     ROUND(previous_total_minutes::numeric, 2) AS "previousTotalMinutes",
                     ROUND(moving_avg_3_months::numeric, 2) AS "movingAvg3Months",
                     CASE
-                        WHEN previous_total_plays IS NULL OR previous_total_plays = 0 THEN NULL
+                        WHEN previous_total_plays IS NULL OR previous_total_plays < 20 THEN NULL
                         ELSE ROUND((((total_plays - previous_total_plays) * 100.0) / previous_total_plays)::numeric, 2)
                     END AS "playGrowthPercent",
                     CASE

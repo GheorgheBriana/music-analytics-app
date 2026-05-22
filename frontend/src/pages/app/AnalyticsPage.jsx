@@ -7,6 +7,11 @@ function AnalyticsPage() {
     const [error, setError] = useState('')
     const [activeTab, setActiveTab] = useState('tracks')
 
+    const [fromDate, setFromDate] = useState('')
+    const [toDate, setToDate] = useState('')
+    const [tempFromDate, setTempFromDate] = useState('')
+    const [tempToDate, setTempToDate] = useState('')
+
     const activeUserId = localStorage.getItem('userId')
 
     useEffect(() => {
@@ -21,7 +26,7 @@ function AnalyticsPage() {
                 setLoading(true)
                 setError('')
 
-                const data = await getUserStats(activeUserId)
+                const data = await getUserStats(activeUserId, fromDate, toDate)
                 setImportedStats(data)
             } catch (error) {
                 setError('Analytics statistics could not be loaded.')
@@ -32,7 +37,19 @@ function AnalyticsPage() {
         }
 
         loadAnalyticsStats()
-    }, [activeUserId])
+    }, [activeUserId, fromDate, toDate])
+
+    function handleApplyFilter() {
+        setFromDate(tempFromDate)
+        setToDate(tempToDate)
+    }
+
+    function handleResetFilter() {
+        setTempFromDate('')
+        setTempToDate('')
+        setFromDate('')
+        setToDate('')
+    }
 
     function formatMinutes(msPlayed) {
         if (!msPlayed) {
@@ -224,8 +241,33 @@ function AnalyticsPage() {
                         Detailed rankings generated from your imported Spotify listening history.
                     </p>
                     <p className="period-label">
-                        Current period: All time
+                        Current period: {fromDate || toDate ? `${fromDate || 'Beginning'} → ${toDate || 'Now'}` : 'All time'}
                     </p>
+                    
+                    <div style={{ marginTop: '16px', marginBottom: '8px', display: 'flex', gap: '12px', alignItems: 'flex-end', background: 'rgba(255,255,255,0.05)', padding: '12px 16px', borderRadius: '8px', width: 'fit-content' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <label style={{ fontSize: '12px', color: '#a3a3a3', marginBottom: '6px' }}>From date</label>
+                            <input 
+                                type="date" 
+                                value={tempFromDate} 
+                                onChange={(e) => setTempFromDate(e.target.value)}
+                                style={{ padding: '8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', background: '#282828', color: '#fff', outline: 'none', colorScheme: 'dark' }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <label style={{ fontSize: '12px', color: '#a3a3a3', marginBottom: '6px' }}>To date</label>
+                            <input 
+                                type="date" 
+                                value={tempToDate} 
+                                onChange={(e) => setTempToDate(e.target.value)}
+                                style={{ padding: '8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', background: '#282828', color: '#fff', outline: 'none', colorScheme: 'dark' }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button onClick={handleApplyFilter} style={{ padding: '8px 16px', background: '#1db954', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Apply</button>
+                            <button onClick={handleResetFilter} style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Reset</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="all-time-summary">
