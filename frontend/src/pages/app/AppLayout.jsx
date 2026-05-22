@@ -85,6 +85,13 @@ function AppLayout() {
                     </NavLink>
 
                     <NavLink
+                        to="/app/social"
+                        className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
+                    >
+                        Social
+                    </NavLink>
+
+                    <NavLink
                         to="/app/profile"
                         className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
                     >

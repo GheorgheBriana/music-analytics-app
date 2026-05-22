@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Treemap, Tooltip, ResponsiveContainer } from 'recharts';
 
-// Custom content for Treemap to show the text inside the blocks
+const COLORS = ['#1DB954', '#8b5cf6', '#3b82f6', '#f59e0b', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6'];
+
 const CustomizedContent = (props) => {
-    const { root, depth, x, y, width, height, index, payload, colors, rank, name } = props;
+    const { root, depth, x, y, width, height, index, colors, name, value } = props;
+
+    // Only render for depth 1 (the actual genres, since we removed the artificial wrapper)
+    if (depth !== 1) return null;
+
+    // If rectangle is too small, hide text but keep the rect for the tooltip
+    const showText = width > 50 && height > 30;
 
     return (
         <g>
@@ -13,30 +20,39 @@ const CustomizedContent = (props) => {
                 width={width}
                 height={height}
                 style={{
-                    fill: depth < 2 ? colors[Math.floor((index / (root?.children?.length || 1)) * 6)] : '#ffffff00',
-                    stroke: '#fff',
-                    strokeWidth: 2 / (depth + 1e-10),
-                    strokeOpacity: 1 / (depth + 1e-10),
+                    fill: COLORS[index % COLORS.length],
+                    stroke: '#121212',
+                    strokeWidth: 2,
                 }}
             />
-            {
-                depth === 1 ?
-                <text
-                    x={x + width / 2}
-                    y={y + height / 2 + 7}
-                    textAnchor="middle"
-                    fill="#fff"
-                    fontSize={14}
-                    fontWeight="bold"
-                >
-                    {name}
-                </text>
-                : null
-            }
+            {showText && (
+                <>
+                    <text
+                        x={x + width / 2}
+                        y={y + height / 2 - 5}
+                        textAnchor="middle"
+                        fill="#fff"
+                        fontSize={13}
+                        fontWeight="bold"
+                        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}
+                    >
+                        {name}
+                    </text>
+                    <text
+                        x={x + width / 2}
+                        y={y + height / 2 + 12}
+                        textAnchor="middle"
+                        fill="rgba(255,255,255,0.8)"
+                        fontSize={11}
+                        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}
+                    >
+                        {value} plays
+                    </text>
+                </>
+            )}
         </g>
     );
 };
-
 
 function MusicDnaPage() {
     const [genres, setGenres] = useState([]);
@@ -53,17 +69,16 @@ function MusicDnaPage() {
                 const genreRes = await fetch(`http://localhost:8080/api/stats/user/${activeUserId}/genres`);
                 const genreData = await genreRes.json();
                 
-                // Format for Recharts Treemap
-                // Treemap requires a root node
-                const formattedGenres = Object.entries(genreData).map(([name, value]) => ({
-                    name,
-                    size: value,
-                }));
+                // Format for Treemap
+                const formattedGenres = Object.entries(genreData)
+                    .filter(([name]) => name.toLowerCase() !== 'unknown')
+                    .map(([name, value]) => ({
+                        name: name,
+                        size: value,
+                    }))
+                    .sort((a, b) => b.size - a.size);
                 
-                setGenres([{
-                    name: 'Genres',
-                    children: formattedGenres
-                }]);
+                setGenres(formattedGenres);
                 
                 const recRes = await fetch(`http://localhost:8080/api/stats/user/${activeUserId}/recommendations`);
                 const recData = await recRes.json();
@@ -94,20 +109,22 @@ function MusicDnaPage() {
             <div className="all-time-grid">
                 <div className="all-time-panel" style={{ minHeight: '400px' }}>
                     <h3>Your Genre Distribution (Treemap)</h3>
-                    {genres[0]?.children?.length > 0 ? (
+                    {genres && genres.length > 0 ? (
                         <ResponsiveContainer width="100%" height={350}>
                             <Treemap
                                 data={genres}
                                 dataKey="size"
-                                stroke="#fff"
-                                fill="#1DB954"
-                                content={<CustomizedContent colors={COLORS} />}
+                                stroke="#121212"
+                                content={<CustomizedContent />}
                             >
-                                <Tooltip formatter={(value) => `${value} weight`} />
+                                <Tooltip 
+                                    contentStyle={{ backgroundColor: '#282828', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                    formatter={(value, name) => [`${value} plays`, name]}
+                                />
                             </Treemap>
                         </ResponsiveContainer>
                     ) : (
-                        <p className="empty-stats-message">No genres found. Try importing a file to sync genres.</p>
+                        <p className="empty-stats-message">No enriched genres available yet.</p>
                     )}
                 </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getUserStats } from '../../api/statsApi'
+import { getUserStats, getUserGenres } from '../../api/statsApi'
+import WrappedCard from '../../components/WrappedCard'
 
 function AnalyticsPage() {
     const [importedStats, setImportedStats] = useState(null)
@@ -11,6 +12,9 @@ function AnalyticsPage() {
     const [toDate, setToDate] = useState('')
     const [tempFromDate, setTempFromDate] = useState('')
     const [tempToDate, setTempToDate] = useState('')
+    
+    const [showWrapped, setShowWrapped] = useState(false)
+    const [topGenre, setTopGenre] = useState('')
 
     const activeUserId = localStorage.getItem('userId')
 
@@ -49,6 +53,22 @@ function AnalyticsPage() {
         setTempToDate('')
         setFromDate('')
         setToDate('')
+    }
+
+    async function handleOpenWrapped() {
+        if (!importedStats) return
+        setShowWrapped(true)
+        if (!topGenre) {
+            try {
+                const genres = await getUserGenres(activeUserId)
+                const sortedGenres = Object.keys(genres).sort((a, b) => genres[b] - genres[a])
+                if (sortedGenres.length > 0) {
+                    setTopGenre(sortedGenres[0])
+                }
+            } catch (err) {
+                console.error("Failed to load genres", err)
+            }
+        }
     }
 
     function formatMinutes(msPlayed) {
@@ -270,9 +290,14 @@ function AnalyticsPage() {
                     </div>
                 </div>
 
-                <div className="all-time-summary">
-                    <strong>{importedStats.totalPlays}</strong>
-                    <span>plays analyzed</span>
+                <div className="all-time-summary" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
+                    <button onClick={handleOpenWrapped} style={{ background: 'linear-gradient(135deg, #1db954 0%, #8b5cf6 100%)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '24px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }}>
+                        ★ Share my Wrapped
+                    </button>
+                    <div>
+                        <strong>{importedStats.totalPlays}</strong>
+                        <span>plays analyzed</span>
+                    </div>
                 </div>
             </div>
 
@@ -309,6 +334,14 @@ function AnalyticsPage() {
             <div className="accordion-content">
                 {renderActiveTab()}
             </div>
+            
+            {showWrapped && (
+                <WrappedCard 
+                    stats={importedStats} 
+                    topGenre={topGenre} 
+                    onClose={() => setShowWrapped(false)} 
+                />
+            )}
         </div>
     )
 }

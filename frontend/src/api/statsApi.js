@@ -24,3 +24,11 @@ export async function getUserStats(userId, fromDate = '', toDate = '') {
 
     return await response.json()
 }
+
+export async function getUserGenres(userId) {
+    const response = await fetch(`${API_BASE_URL}/api/stats/user/${userId}/genres`)
+    if (!response.ok) {
+        return {} // Return empty map if fails
+    }
+    return await response.json()
+}

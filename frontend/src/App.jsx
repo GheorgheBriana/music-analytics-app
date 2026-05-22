@@ -15,6 +15,7 @@ import MusicDnaPage from './pages/app/MusicDnaPage'
 import SpotifyLivePage from './pages/app/SpotifyLivePage'
 import ProfileImportPage from './pages/app/ProfileImportPage'
 import PredictionsPage from './pages/app/PredictionsPage'
+import SocialPage from './pages/app/SocialPage'
 
 function LandingRoute() {
     const navigate = useNavigate()
@@ -115,6 +116,7 @@ function App() {
                     <Route path="dna" element={<MusicDnaPage />} />
                     <Route path="spotify-live" element={<SpotifyLivePage />} />
                     <Route path="predictions" element={<PredictionsPage />} />
+                    <Route path="social" element={<SocialPage />} />
                     <Route path="profile" element={<ProfileImportPage />} />
                     
                 </Route>
