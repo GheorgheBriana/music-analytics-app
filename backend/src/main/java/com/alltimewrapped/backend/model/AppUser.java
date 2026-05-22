@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
 
@@ -12,6 +14,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class AppUser {
 
     @Id
@@ -53,6 +57,11 @@ public class AppUser {
     // the Spotify refresh token used to request a new access token when needed
     @Column(name = "spotify_refresh_token", length = 2000)
     private String spotifyRefreshToken;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    @Builder.Default
+    private UserRole role = UserRole.USER;
 
     @PrePersist
     protected void onCreate() {

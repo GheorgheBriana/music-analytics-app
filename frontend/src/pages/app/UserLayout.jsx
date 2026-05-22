@@ -2,14 +2,11 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import '../SpotifyStatsPage.css'
 
-function AppLayout() {
-    const navigate = useNavigate()
-    const { isAdmin } = useAuth()
+function UserLayout() {
+    const { logout } = useAuth()
 
     function handleLogout() {
-        localStorage.removeItem('userId')
-        localStorage.removeItem('authType')
-        navigate('/')
+        logout()
     }
 
     return (
@@ -44,12 +41,6 @@ function AppLayout() {
                     </NavLink>
 
 
-                    <NavLink
-                        to="/app/dw-pipeline"
-                        className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
-                    >
-                        DW Pipeline
-                    </NavLink>
 
                     <NavLink
                         to="/app/bi-dashboard"
@@ -100,15 +91,7 @@ function AppLayout() {
                         Profile / Import
                     </NavLink>
 
-                    {isAdmin && isAdmin() && (
-                        <NavLink
-                            to="/app/admin"
-                            className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
-                            style={{ backgroundColor: 'rgba(255, 68, 68, 0.1)', color: '#ff4444', borderColor: 'rgba(255, 68, 68, 0.3)' }}
-                        >
-                            Admin
-                        </NavLink>
-                    )}
+
                 </div>
 
                 <Outlet />
@@ -117,4 +100,4 @@ function AppLayout() {
     )
 }
 
-export default AppLayout
+export default UserLayout
