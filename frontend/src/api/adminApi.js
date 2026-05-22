@@ -53,5 +53,17 @@ export const adminApi = {
         });
         if (!res.ok) throw new Error('Failed to trigger enrichment');
         return res.json();
+    },
+
+    getRecentActions: async () => {
+        const res = await fetch(`${BASE_URL}/actions/recent`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch recent actions');
+        return res.json();
+    },
+
+    getDataQualityStats: async () => {
+        const res = await fetch(`${BASE_URL}/dw/quality`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch data quality stats');
+        return res.json();
     }
 };

@@ -3,6 +3,9 @@ package com.alltimewrapped.backend.admin.service;
 import com.alltimewrapped.backend.admin.dto.AdminUserSummaryDto;
 import com.alltimewrapped.backend.admin.dto.AdminDwStatsDto;
 import com.alltimewrapped.backend.admin.dto.AdminEnrichmentStatusDto;
+import com.alltimewrapped.backend.admin.dto.AdminDataQualityDto;
+import com.alltimewrapped.backend.admin.model.AdminActionLog;
+import com.alltimewrapped.backend.admin.repository.AdminActionLogRepository;
 import com.alltimewrapped.backend.analytics.repository.*;
 import com.alltimewrapped.backend.repository.*;
 import com.alltimewrapped.backend.model.AppUser;
@@ -20,6 +23,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminService {
 
+    private final AdminActionLogRepository adminActionLogRepository;
     private final AppUserRepository appUserRepository;
     private final ListeningRecordRepository listeningRecordRepository;
     private final DwFactListeningEventRepository dwFactListeningEventRepository;
@@ -106,6 +110,66 @@ public class AdminService {
             .totalGenres(totalGenres)
             .totalTrackGenreLinks(totalLinks)
             .enrichmentProgressPercentage(total == 0 ? 0 : (enriched * 100.0) / total)
+            .build();
+    }
+
+    @Transactional
+    public void logAction(Long adminId, String type, String details, String status) {
+        AdminActionLog log = AdminActionLog.builder()
+            .adminUserId(adminId)
+            .actionType(type)
+            .actionDetails(details)
+            .status(status)
+            .build();
+        adminActionLogRepository.save(log);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminActionLog> getRecentActions() {
+        return adminActionLogRepository.findTop10ByOrderByCreatedAtDesc();
+    }
+
+    @Transactional(readOnly = true)
+    public AdminDataQualityDto getDataQualityStats() {
+        long oltpRecords = listeningRecordRepository.count();
+        long dwFacts = dwFactListeningEventRepository.count();
+        double coverage = oltpRecords == 0 ? 0 : (dwFacts * 100.0) / oltpRecords;
+
+        long unknownGenreFacts = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM dw.dw_fact_listening_event f " +
+            "JOIN dw.dw_dim_genre g ON f.genre_key = g.genre_key " +
+            "WHERE g.genre_name = 'unknown'", Long.class);
+            
+        long knownGenreFacts = dwFacts - unknownGenreFacts;
+
+        long totalTracks = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oltp.tracks", Long.class);
+        long tracksWithDuration = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oltp.tracks WHERE duration_ms IS NOT NULL", Long.class);
+        long tracksWithoutDuration = totalTracks - tracksWithDuration;
+
+        long totalArtists = artistRepository.count();
+        long enrichedArtists = artistRepository.countByGenreEnrichedTrue();
+        double enrichmentCoverage = totalArtists == 0 ? 0 : (enrichedArtists * 100.0) / totalArtists;
+
+        long mvRows = 0;
+        for (String mv : List.of("mv_monthly_listening", "mv_part_of_day_stats",
+                "mv_weekend_vs_weekday_stats", "mv_top_genres", "mv_listening_heatmap")) {
+            Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM dw." + mv, Long.class);
+            if (count != null) {
+                mvRows += count;
+            }
+        }
+
+        return AdminDataQualityDto.builder()
+            .oltpListeningRecordsCount(oltpRecords)
+            .dwFactsCount(dwFacts)
+            .dwCoveragePercentage(coverage)
+            .knownGenreFacts(knownGenreFacts)
+            .unknownGenreFacts(unknownGenreFacts)
+            .genreEnrichmentCoverage(enrichmentCoverage)
+            .tracksWithoutDuration(tracksWithoutDuration)
+            .tracksWithDuration(tracksWithDuration)
+            .materializedViewRowCounts(mvRows)
             .build();
     }
 }
