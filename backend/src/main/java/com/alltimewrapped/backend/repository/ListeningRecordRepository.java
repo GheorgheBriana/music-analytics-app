@@ -338,4 +338,21 @@ public interface ListeningRecordRepository extends JpaRepository<ListeningRecord
                 nativeQuery = true
         )
         List<ListeningRecord> findRecordsNotInWarehouse(@Param("limit") int limit);
+
+        @Query(
+                value = """
+                        SELECT lr.*
+                        FROM oltp.listening_records lr
+                        WHERE lr.user_id = :userId
+                          AND NOT EXISTS (
+                            SELECT 1
+                            FROM dw.dw_fact_listening_event f
+                            WHERE f.original_listening_record_id = lr.id
+                          )
+                        ORDER BY lr.id
+                        LIMIT :limit
+                        """,
+                nativeQuery = true
+        )
+        List<ListeningRecord> findRecordsNotInWarehouseForUser(@Param("userId") Long userId, @Param("limit") int limit);
 }

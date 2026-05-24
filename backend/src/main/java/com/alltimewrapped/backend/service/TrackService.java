@@ -50,17 +50,22 @@ public class TrackService {
             Map<String, Artist> artistCache,
             Map<String, Album> albumCache
     ) {
+        // Genre cache is built lazily inside this call — "unknown" is looked up once and reused
         if (spotifyTrackUri != null && trackCache.containsKey(spotifyTrackUri)) {
             return trackCache.get(spotifyTrackUri);
         }
 
+        // Ensure "unknown" genre is pre-cached on first call to avoid repeated DB hits
+        // across all new track creations in the same import session
+        Genre unknownGenre = findOrCreateGenre("unknown");
+
         Track track;
         if (spotifyTrackUri != null) {
             track = trackRepository.findBySpotifyTrackUri(spotifyTrackUri)
-                    .map(existing -> ensureOltpRelations(existing, artistName, albumName, artistCache, albumCache))
-                    .orElseGet(() -> createTrack(spotifyTrackUri, trackName, artistName, albumName, artistCache, albumCache));
+                    .map(existing -> ensureOltpRelations(existing, artistName, albumName, artistCache, albumCache, unknownGenre))
+                    .orElseGet(() -> createTrack(spotifyTrackUri, trackName, artistName, albumName, artistCache, albumCache, unknownGenre));
         } else {
-            track = createTrack(null, trackName, artistName, albumName, artistCache, albumCache);
+            track = createTrack(null, trackName, artistName, albumName, artistCache, albumCache, unknownGenre);
         }
 
         if (spotifyTrackUri != null) {
@@ -77,13 +82,13 @@ public class TrackService {
         String safeArtistName = normalizeValue(artistName, "Unknown Artist");
         String safeAlbumName = normalizeValue(albumName, "Unknown Album");
 
-        // These fields are kept for compatibility with the existing statistics queries.
+        // These fields are kept for compatibility with the existing statistics queries
         track.setSpotifyTrackUri(spotifyTrackUri);
         track.setTrackName(safeTrackName);
         track.setArtistName(safeArtistName);
         track.setAlbumName(safeAlbumName);
 
-        // New normalized OLTP relations.
+        // New normalized OLTP relations
         Album album = findOrCreateAlbum(safeAlbumName);
         Artist artist = findOrCreateArtist(safeArtistName);
         Genre unknownGenre = findOrCreateGenre("unknown");
@@ -95,14 +100,16 @@ public class TrackService {
         return trackRepository.save(track);
     }
 
-    // Cache-aware version of createTrack — uses local HashMaps to avoid repeated DB lookups.
+    // Cache-aware version of createTrack — uses local HashMaps to avoid repeated DB lookups
+    // Accepts pre-fetched unknownGenre to avoid a DB hit per new track
     private Track createTrack(
             String spotifyTrackUri,
             String trackName,
             String artistName,
             String albumName,
             Map<String, Artist> artistCache,
-            Map<String, Album> albumCache
+            Map<String, Album> albumCache,
+            Genre unknownGenre
     ) {
         Track track = new Track();
 
@@ -117,7 +124,6 @@ public class TrackService {
 
         Album album = findOrCreateAlbumCached(safeAlbumName, albumCache);
         Artist artist = findOrCreateArtistCached(safeArtistName, artistCache);
-        Genre unknownGenre = findOrCreateGenre("unknown");
 
         track.setAlbum(album);
         track.getArtists().add(artist);
@@ -126,13 +132,14 @@ public class TrackService {
         return trackRepository.save(track);
     }
 
-    // Cache-aware version of ensureOltpRelations.
+    // Cache-aware version of ensureOltpRelations — accepts pre-fetched unknownGenre.
     private Track ensureOltpRelations(
             Track track,
             String artistName,
             String albumName,
             Map<String, Artist> artistCache,
-            Map<String, Album> albumCache
+            Map<String, Album> albumCache,
+            Genre unknownGenre
     ) {
         boolean changed = false;
 
@@ -159,7 +166,7 @@ public class TrackService {
             changed = true;
         }
         if (track.getGenres() == null || track.getGenres().isEmpty()) {
-            track.getGenres().add(findOrCreateGenre("unknown"));
+            track.getGenres().add(unknownGenre);
             changed = true;
         }
 

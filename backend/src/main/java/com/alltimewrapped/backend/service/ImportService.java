@@ -8,9 +8,9 @@ import com.alltimewrapped.backend.model.ListeningSource;
 import com.alltimewrapped.backend.model.Track;
 import com.alltimewrapped.backend.repository.AppUserRepository;
 import com.alltimewrapped.backend.repository.ListeningRecordRepository;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.JsonParser;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
@@ -135,11 +135,13 @@ public class ImportService {
 
     private List<List<SpotifyListeningDTO>> createBatches(List<SpotifyListeningDTO> list, int batchSize) {
         List<List<SpotifyListeningDTO>> batches = new ArrayList<>();
+
         for (int i = 0; i < list.size(); i += batchSize) {
             batches.add(new ArrayList<>(
                     list.subList(i, Math.min(list.size(), i + batchSize)))
             );
         }
+
         return batches;
     }
 
@@ -156,20 +158,19 @@ public class ImportService {
         int duplicateRecords = 0;
         int skippedRecords = 0;
 
-        // Local caches — avoid repeated DB lookups for same track/artist/album during import
+        // local caches avoid repeated DB lookups for the same track, artist or album
         Map<String, Track> trackCache = new HashMap<>();
         Map<String, com.alltimewrapped.backend.model.Artist> artistCache = new HashMap<>();
         Map<String, com.alltimewrapped.backend.model.Album> albumCache = new HashMap<>();
 
-        // Pre-load existing record keys for this user — avoids one SELECT EXISTS per record
-        // Key format: trackId:playedAtEpochMs
+        // pre-load existing records for this user, instead of checking duplicates one by one
         Set<String> existingKeys = buildExistingKeysSet(user.getId());
 
         List<ListeningRecord> batch = new ArrayList<>();
 
         for (SpotifyListeningDTO dto : records) {
 
-            // Ignore records that cannot be used for music statistics.
+            // ignore records that cannot be used for music statistics
             if (shouldSkipRecord(dto)) {
                 skippedRecords++;
                 continue;
@@ -195,11 +196,14 @@ public class ImportService {
             );
 
             String duplicateKey = track.getId() + ":" + playedAt.toInstant().toEpochMilli();
+
             if (existingKeys.contains(duplicateKey)) {
                 duplicateRecords++;
                 continue;
             }
-            existingKeys.add(duplicateKey); // prevent duplicates within same import batch
+
+            // prevent duplicates inside the same import, before the records are saved
+            existingKeys.add(duplicateKey);
 
             ListeningRecord record = buildRecord(dto, user, track, playedAt);
             batch.add(record);
@@ -233,8 +237,13 @@ public class ImportService {
     // saves the current batch and prepares it for the next records
     private void saveBatch(List<ListeningRecord> batch) {
         listeningRecordRepository.saveAll(batch);
+
+        // force Hibernate to send the current batch to the database
         entityManager.flush();
+
+        // clear the persistence context so the import does not become slower over time
         entityManager.clear();
+
         log.debug("Saved batch of {} records", batch.size());
         batch.clear();
     }
@@ -260,12 +269,25 @@ public class ImportService {
         return record;
     }
 
-    // Pre-loads all existing (trackId:playedAtEpochMs) pairs for a user into a Set.
-    // Replaces per-record SELECT EXISTS with a single query + in-memory lookup.
+    // pre-loads all existing records for a user into a set
+    // this avoids one duplicate-check query for every Spotify record
     private Set<String> buildExistingKeysSet(Long userId) {
         return listeningRecordRepository.findTrackIdAndPlayedAtByUserId(userId)
                 .stream()
-                .map(row -> row[0] + ":" + row[1])
+                .map(row -> {
+                    long epochMs = 0L;
+                    Object rawPlayedAt = row[1];
+
+                    if (rawPlayedAt instanceof OffsetDateTime offsetDateTime) {
+                        epochMs = offsetDateTime.toInstant().toEpochMilli();
+                    } else if (rawPlayedAt instanceof java.sql.Timestamp timestamp) {
+                        epochMs = timestamp.toInstant().toEpochMilli();
+                    } else if (rawPlayedAt instanceof java.time.Instant instant) {
+                        epochMs = instant.toEpochMilli();
+                    }
+
+                    return row[0] + ":" + epochMs;
+                })
                 .collect(java.util.stream.Collectors.toCollection(HashSet::new));
     }
 }

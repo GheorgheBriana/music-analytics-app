@@ -10,6 +10,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpEntity;
@@ -17,6 +19,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -36,6 +39,10 @@ public class MusicBrainzEnrichmentService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Autowired
+    @Lazy
+    private MusicBrainzEnrichmentService self;
+
     private static final Set<String> IGNORED_TAGS = Set.of(
             "2020s", "2010s", "2000s", "1990s", "1980s", "1970s", "1960s",
             "seen live", "favorite", "favorites", "favourite", "favourites",
@@ -43,7 +50,7 @@ public class MusicBrainzEnrichmentService {
             "male vocalists", "female vocalists", "singer-songwriter"
     );
 
-    @Transactional
+    @Transactional(readOnly = true)
     public Map<String, Object> enrichArtists(int limit) {
         Page<Artist> unenrichedArtists = artistRepository.findByGenreEnrichedFalse(PageRequest.of(0, limit));
         
@@ -52,16 +59,20 @@ public class MusicBrainzEnrichmentService {
 
         for (Artist artist : unenrichedArtists) {
             try {
-                enrichSingleArtist(artist);
+                // Execute individual artist enrichment in a separate transaction using the self-proxy
+                self.enrichSingleArtistTransactional(artist.getId());
                 processed++;
-                if (!artist.getTracks().isEmpty() && !artist.getTracks().iterator().next().getGenres().isEmpty()) {
+                
+                // Reload from DB to verify if genres were mapped
+                Artist reloaded = artistRepository.findById(artist.getId()).orElse(artist);
+                if (!reloaded.getTracks().isEmpty() && !reloaded.getTracks().iterator().next().getGenres().isEmpty()) {
                     foundTags++;
                 }
                 
                 // Rate limiting for MusicBrainz: 1 request per second
                 Thread.sleep(1100);
             } catch (Exception e) {
-                log.error("Failed to enrich artist: " + artist.getArtistName(), e);
+                log.error("Failed to enrich artist ID " + artist.getId() + " (" + artist.getArtistName() + "): " + e.getMessage());
             }
         }
 
@@ -71,6 +82,13 @@ public class MusicBrainzEnrichmentService {
         result.put("processed", processed);
         result.put("artistsEnrichedWithTags", foundTags);
         return result;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void enrichSingleArtistTransactional(Long artistId) throws Exception {
+        Artist artist = artistRepository.findById(artistId)
+                .orElseThrow(() -> new IllegalArgumentException("Artist not found with ID: " + artistId));
+        enrichSingleArtist(artist);
     }
 
     private void enrichSingleArtist(Artist artist) throws Exception {
@@ -111,10 +129,10 @@ public class MusicBrainzEnrichmentService {
         // Parse, filter and sort tags
         List<TagRecord> validTags = new ArrayList<>();
         for (JsonNode tagNode : tagsNode) {
-            String name = tagNode.path("name").asText("").toLowerCase();
+            String name = tagNode.path("name").asText("").trim().toLowerCase();
             int count = tagNode.path("count").asInt(0);
 
-            if (count > 0 && !IGNORED_TAGS.contains(name) && name.length() > 2) {
+            if (count > 0 && !name.isBlank() && !IGNORED_TAGS.contains(name) && name.length() > 2) {
                 validTags.add(new TagRecord(name, count));
             }
         }
@@ -132,9 +150,10 @@ public class MusicBrainzEnrichmentService {
         // Associate top tags to the artist's tracks
         Set<Genre> genreEntities = new HashSet<>();
         for (TagRecord tr : topTags) {
-            Genre genre = genreRepository.findByNameIgnoreCase(tr.name)
-                    .orElseGet(() -> genreRepository.save(Genre.builder().name(tr.name).build()));
-            genreEntities.add(genre);
+            Genre genre = getOrCreateGenreSafe(tr.name);
+            if (genre != null) {
+                genreEntities.add(genre);
+            }
         }
 
         for (Track track : artist.getTracks()) {
@@ -143,6 +162,27 @@ public class MusicBrainzEnrichmentService {
         }
 
         markAsEnriched(artist, mbId, "success");
+    }
+
+    private Genre getOrCreateGenreSafe(String rawName) {
+        if (rawName == null || rawName.trim().isBlank()) {
+            return null;
+        }
+
+        String normalizedName = rawName.trim().toLowerCase();
+
+        return genreRepository.findByNameIgnoreCase(normalizedName)
+                .orElseGet(() -> {
+                    try {
+                        Genre newGenre = Genre.builder().name(normalizedName).build();
+                        return genreRepository.saveAndFlush(newGenre);
+                    } catch (Exception ex) {
+                        log.warn("Unique constraint or duplicate key violation for genre '{}', reloading...", normalizedName);
+                        // Reload from database to ensure consistency and reuse the existing one
+                        return genreRepository.findByNameIgnoreCase(normalizedName)
+                                .orElse(null);
+                    }
+                });
     }
 
     private void markAsEnriched(Artist artist, String mbId, String source) {

@@ -42,7 +42,16 @@ public class AnalyticsRefreshService {
     @Transactional
     public Map<String, Object> refreshWarehouse(int limit) {
         List<ListeningRecord> records = listeningRecordRepository.findRecordsNotInWarehouse(limit);
+        return processRecordsIntoWarehouse(records, limit);
+    }
 
+    @Transactional
+    public Map<String, Object> refreshWarehouseForUser(Long userId, int limit) {
+        List<ListeningRecord> records = listeningRecordRepository.findRecordsNotInWarehouseForUser(userId, limit);
+        return processRecordsIntoWarehouse(records, limit);
+    }
+
+    private Map<String, Object> processRecordsIntoWarehouse(List<ListeningRecord> records, int limit) {
         int processedRecords = 0;
         int insertedFacts = 0;
         int skippedInvalidRecords = 0;

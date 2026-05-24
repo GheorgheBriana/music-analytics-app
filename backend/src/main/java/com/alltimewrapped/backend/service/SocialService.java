@@ -1,21 +1,20 @@
 package com.alltimewrapped.backend.service;
 
 import com.alltimewrapped.backend.dto.ComparisonDTO;
-import com.alltimewrapped.backend.dto.TopArtistStatsDTO;
-import com.alltimewrapped.backend.dto.TopTrackStatsDTO;
 import com.alltimewrapped.backend.dto.UserDTO;
 import com.alltimewrapped.backend.model.AppUser;
 import com.alltimewrapped.backend.repository.AppUserRepository;
-import com.alltimewrapped.backend.repository.ListeningRecordRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,7 +23,7 @@ import java.util.stream.Collectors;
 public class SocialService {
 
     private final AppUserRepository appUserRepository;
-    private final ListeningRecordRepository listeningRecordRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
     public List<UserDTO> getAllUsers() {
@@ -40,48 +39,141 @@ public class SocialService {
         AppUser user2 = appUserRepository.findById(userId2)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User 2 not found"));
 
-        // Load top 100 artists for both users
-        List<TopArtistStatsDTO> u1Artists = listeningRecordRepository.findTopArtistsByUserId(userId1, PageRequest.of(0, 100));
-        List<TopArtistStatsDTO> u2Artists = listeningRecordRepository.findTopArtistsByUserId(userId2, PageRequest.of(0, 100));
+        // 1. Fetch Top 100 Artists from DWH (Keys & Names)
+        String artistSql = """
+                SELECT a.artist_key, a.artist_name
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
+                JOIN dw.dw_dim_user u ON f.user_key = u.user_key
+                WHERE u.original_user_id = ?
+                GROUP BY a.artist_key, a.artist_name
+                ORDER BY COUNT(f.fact_id) DESC LIMIT 100
+                """;
 
-        Set<String> u1ArtistNames = u1Artists.stream().map(TopArtistStatsDTO::getArtistName).collect(Collectors.toSet());
-        Set<String> u2ArtistNames = u2Artists.stream().map(TopArtistStatsDTO::getArtistName).collect(Collectors.toSet());
+        List<Map<String, Object>> u1ArtistRows = jdbcTemplate.queryForList(artistSql, userId1);
+        List<Map<String, Object>> u2ArtistRows = jdbcTemplate.queryForList(artistSql, userId2);
 
-        Set<String> commonArtists = new HashSet<>(u1ArtistNames);
-        commonArtists.retainAll(u2ArtistNames);
-        
-        Set<String> unionArtists = new HashSet<>(u1ArtistNames);
-        unionArtists.addAll(u2ArtistNames);
+        Set<Long> u1ArtistKeys = u1ArtistRows.stream().map(r -> ((Number) r.get("artist_key")).longValue()).collect(Collectors.toSet());
+        Set<Long> u2ArtistKeys = u2ArtistRows.stream().map(r -> ((Number) r.get("artist_key")).longValue()).collect(Collectors.toSet());
 
-        double artistSimilarity = unionArtists.isEmpty() ? 0 : (double) commonArtists.size() / unionArtists.size();
+        Set<Long> commonArtistKeys = new HashSet<>(u1ArtistKeys);
+        commonArtistKeys.retainAll(u2ArtistKeys);
 
-        // Load top 100 tracks for both users
-        List<TopTrackStatsDTO> u1Tracks = listeningRecordRepository.findTopTracksByUserId(userId1, PageRequest.of(0, 100));
-        List<TopTrackStatsDTO> u2Tracks = listeningRecordRepository.findTopTracksByUserId(userId2, PageRequest.of(0, 100));
+        Set<Long> unionArtistKeys = new HashSet<>(u1ArtistKeys);
+        unionArtistKeys.addAll(u2ArtistKeys);
 
-        Set<String> u1TrackNames = u1Tracks.stream().map(TopTrackStatsDTO::getTrackName).collect(Collectors.toSet());
-        Set<String> u2TrackNames = u2Tracks.stream().map(TopTrackStatsDTO::getTrackName).collect(Collectors.toSet());
+        double artistSimilarity = unionArtistKeys.isEmpty() ? 0 : (double) commonArtistKeys.size() / unionArtistKeys.size();
 
-        Set<String> commonTracks = new HashSet<>(u1TrackNames);
-        commonTracks.retainAll(u2TrackNames);
+        // Map common artist names for visual display
+        List<String> commonArtists = u1ArtistRows.stream()
+                .filter(r -> commonArtistKeys.contains(((Number) r.get("artist_key")).longValue()))
+                .map(r -> (String) r.get("artist_name"))
+                .distinct()
+                .limit(10)
+                .collect(Collectors.toList());
 
-        Set<String> unionTracks = new HashSet<>(u1TrackNames);
-        unionTracks.addAll(u2TrackNames);
+        // 2. Fetch Top 100 Tracks from DWH (Keys & Names)
+        String trackSql = """
+                SELECT t.track_key, t.track_name
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_track t ON f.track_key = t.track_key
+                JOIN dw.dw_dim_user u ON f.user_key = u.user_key
+                WHERE u.original_user_id = ?
+                GROUP BY t.track_key, t.track_name
+                ORDER BY COUNT(f.fact_id) DESC LIMIT 100
+                """;
 
-        double trackSimilarity = unionTracks.isEmpty() ? 0 : (double) commonTracks.size() / unionTracks.size();
+        List<Map<String, Object>> u1TrackRows = jdbcTemplate.queryForList(trackSql, userId1);
+        List<Map<String, Object>> u2TrackRows = jdbcTemplate.queryForList(trackSql, userId2);
 
-        // Final score: 70% artists + 30% tracks
-        int finalScore = (int) Math.round((artistSimilarity * 0.70 + trackSimilarity * 0.30) * 100);
+        Set<Long> u1TrackKeys = u1TrackRows.stream().map(r -> ((Number) r.get("track_key")).longValue()).collect(Collectors.toSet());
+        Set<Long> u2TrackKeys = u2TrackRows.stream().map(r -> ((Number) r.get("track_key")).longValue()).collect(Collectors.toSet());
 
-        List<String> commonArtistsList = commonArtists.stream().limit(10).collect(Collectors.toList());
-        List<String> commonTracksList = commonTracks.stream().limit(10).collect(Collectors.toList());
+        Set<Long> commonTrackKeys = new HashSet<>(u1TrackKeys);
+        commonTrackKeys.retainAll(u2TrackKeys);
+
+        Set<Long> unionTrackKeys = new HashSet<>(u1TrackKeys);
+        unionTrackKeys.addAll(u2TrackKeys);
+
+        double trackSimilarity = unionTrackKeys.isEmpty() ? 0 : (double) commonTrackKeys.size() / unionTrackKeys.size();
+
+        List<String> commonTracks = u1TrackRows.stream()
+                .filter(r -> commonTrackKeys.contains(((Number) r.get("track_key")).longValue()))
+                .map(r -> (String) r.get("track_name"))
+                .distinct()
+                .limit(10)
+                .collect(Collectors.toList());
+
+        // 3. Fetch Top 15 Genres from Materialized Views (Pre-aggregated)
+        String genreSql = "SELECT genre_name FROM dw.mv_top_genres WHERE original_user_id = ? ORDER BY total_plays DESC LIMIT 15";
+        List<String> u1Genres = jdbcTemplate.queryForList(genreSql, String.class, userId1);
+        List<String> u2Genres = jdbcTemplate.queryForList(genreSql, String.class, userId2);
+
+        Set<String> u1GenreSet = new HashSet<>(u1Genres);
+        Set<String> u2GenreSet = new HashSet<>(u2Genres);
+
+        Set<String> commonGenres = new HashSet<>(u1GenreSet);
+        commonGenres.retainAll(u2GenreSet);
+
+        Set<String> unionGenres = new HashSet<>(u1GenreSet);
+        unionGenres.addAll(u2GenreSet);
+
+        double genreSimilarity = unionGenres.isEmpty() ? 0 : (double) commonGenres.size() / unionGenres.size();
+
+        // 4. Fetch Listening Rhythm / Hours from Materialized Views
+        String rhythmSql = "SELECT hour FROM dw.mv_listening_heatmap WHERE original_user_id = ? GROUP BY hour HAVING SUM(total_plays) >= 3";
+        List<Integer> u1Hours = jdbcTemplate.queryForList(rhythmSql, Integer.class, userId1);
+        List<Integer> u2Hours = jdbcTemplate.queryForList(rhythmSql, Integer.class, userId2);
+
+        Set<Integer> u1HourSet = new HashSet<>(u1Hours);
+        Set<Integer> u2HourSet = new HashSet<>(u2Hours);
+
+        Set<Integer> commonHours = new HashSet<>(u1HourSet);
+        commonHours.retainAll(u2HourSet);
+
+        Set<Integer> unionHours = new HashSet<>(u1HourSet);
+        unionHours.addAll(u2HourSet);
+
+        double rhythmSimilarity = unionHours.isEmpty() ? 0 : (double) commonHours.size() / unionHours.size();
+
+        // Final score: Weighted average of the four dimensions
+        // 35% artists + 25% tracks + 20% genres + 20% rhythm
+        double finalSimilarity = (artistSimilarity * 0.35) + (trackSimilarity * 0.25) + (genreSimilarity * 0.20) + (rhythmSimilarity * 0.20);
+        int finalScore = (int) Math.round(finalSimilarity * 100);
+
+        // 5. Collaborative Filtering Recommendations: Tracks User 2 (Friend) has listened to that User 1 (Me) hasn't
+        String recommendationsSql = """
+                SELECT t.track_name, a.artist_name, COUNT(*) AS plays
+                FROM dw.dw_fact_listening_event f
+                JOIN dw.dw_dim_track t ON f.track_key = t.track_key
+                JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
+                JOIN dw.dw_dim_user u ON f.user_key = u.user_key
+                WHERE u.original_user_id = ?
+                  AND t.track_name NOT IN (
+                      SELECT t2.track_name
+                      FROM dw.dw_fact_listening_event f2
+                      JOIN dw.dw_dim_track t2 ON f2.track_key = t2.track_key
+                      JOIN dw.dw_dim_user u2 ON f2.user_key = u2.user_key
+                      WHERE u2.original_user_id = ?
+                  )
+                GROUP BY t.track_name, a.artist_name
+                ORDER BY plays DESC
+                LIMIT 5
+                """;
+
+        List<Map<String, Object>> recRows = jdbcTemplate.queryForList(recommendationsSql, userId2, userId1);
+        List<String> recommendations = new ArrayList<>();
+        for (Map<String, Object> row : recRows) {
+            recommendations.add(row.get("track_name") + " - " + row.get("artist_name"));
+        }
 
         return new ComparisonDTO(
                 user1.getUsername(),
                 user2.getUsername(),
                 finalScore,
-                commonArtistsList,
-                commonTracksList
+                commonArtists,
+                commonTracks,
+                recommendations
         );
     }
 }

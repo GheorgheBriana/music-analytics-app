@@ -123,6 +123,24 @@ function SocialPage() {
                             )}
                         </div>
                     </div>
+
+                    {comparison.recommendations && comparison.recommendations.length > 0 && (
+                        <div className="common-section" style={{ marginTop: '24px', width: '100%', maxWidth: '600px', margin: '24px auto 0 auto' }}>
+                            <h4 style={{ color: '#1db954', borderBottom: '1px solid rgba(29, 185, 84, 0.2)', paddingBottom: '8px', marginBottom: '12px' }}>
+                                💡 Recommended for You (from your friend's DNA)
+                            </h4>
+                            <p style={{ color: '#a3a3a3', fontSize: '13px', marginBottom: '12px' }}>
+                                Based on Item-Based Collaborative Filtering, here are popular tracks in {comparison.user2Name}'s profile that you haven't discovered yet:
+                            </p>
+                            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {comparison.recommendations.map((rec, idx) => (
+                                    <li key={`rec-${idx}`} style={{ background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '6px', fontSize: '14px', borderLeft: '3px solid #1db954' }}>
+                                        🎵 {rec}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

@@ -31,6 +31,15 @@ export const adminApi = {
         return res.json();
     },
     
+    refreshWarehouseForUser: async (userId, limit = 20000) => {
+        const res = await fetch(`${BASE_URL}/dw/refresh/user/${userId}?limit=${limit}`, { 
+            method: 'POST', 
+            headers: getHeaders() 
+        });
+        if (!res.ok) throw new Error('Failed to refresh warehouse for user');
+        return res.json();
+    },
+    
     refreshMaterializedViews: async () => {
         const res = await fetch(`${BASE_URL}/dw/refresh-mvs`, { 
             method: 'POST', 
@@ -64,6 +73,36 @@ export const adminApi = {
     getDataQualityStats: async () => {
         const res = await fetch(`${BASE_URL}/dw/quality`, { headers: getHeaders() });
         if (!res.ok) throw new Error('Failed to fetch data quality stats');
+        return res.json();
+    },
+
+    getOltpTables: async () => {
+        const res = await fetch(`${BASE_URL}/schema/tables/oltp`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch OLTP tables');
+        return res.json();
+    },
+
+    getDwTables: async () => {
+        const res = await fetch(`${BASE_URL}/schema/tables/dw`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch DW tables');
+        return res.json();
+    },
+
+    getMaterializedViews: async () => {
+        const res = await fetch(`${BASE_URL}/schema/materialized-views`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch materialized views schema');
+        return res.json();
+    },
+
+    getDwIndexes: async () => {
+        const res = await fetch(`${BASE_URL}/schema/indexes/dw`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch DW indexes');
+        return res.json();
+    },
+
+    getPartitions: async () => {
+        const res = await fetch(`${BASE_URL}/schema/partitions`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch partitions');
         return res.json();
     }
 };

@@ -27,13 +27,38 @@ export async function getWarehouseStatus() {
 }
 
 export async function rebuildAnalyticsPipeline(backfillLimit = 200, refreshLimit = 500) {
+    const userId = localStorage.getItem('userId') || localStorage.getItem('original_user_id')
     const queryParams = new URLSearchParams()
     queryParams.append('backfillLimit', backfillLimit)
     queryParams.append('refreshLimit', refreshLimit)
 
-    return requestJson(`${API_BASE_URL}/api/analytics/pipeline/rebuild?${queryParams.toString()}`, {
-        method: 'POST'
+    const response = await fetch(`${API_BASE_URL}/api/admin/dw/pipeline/rebuild?${queryParams.toString()}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-User-Id': userId || ''
+        }
     })
+
+    if (!response.ok) {
+        let errorMsg = 'Analytics pipeline could not be executed.'
+        try {
+            const text = await response.text()
+            try {
+                const errJson = JSON.parse(text)
+                if (errJson && errJson.message) {
+                    errorMsg = errJson.message
+                }
+            } catch (_) {
+                if (text) {
+                    errorMsg = text
+                }
+            }
+        } catch (_) {}
+        throw new Error(errorMsg)
+    }
+
+    return await response.json()
 }
 
 export async function getWarehouseSummary() {

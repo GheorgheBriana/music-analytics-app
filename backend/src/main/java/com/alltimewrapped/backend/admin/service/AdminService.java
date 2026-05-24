@@ -172,4 +172,51 @@ public class AdminService {
             .materializedViewRowCounts(mvRows)
             .build();
     }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getOltpTables() {
+        return jdbcTemplate.queryForList(
+            "SELECT table_name FROM information_schema.tables " +
+            "WHERE table_schema = 'oltp' AND table_type = 'BASE TABLE' " +
+            "ORDER BY table_name"
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getDwTables() {
+        return jdbcTemplate.queryForList(
+            "SELECT table_name FROM information_schema.tables " +
+            "WHERE table_schema = 'dw' AND table_type = 'BASE TABLE' " +
+            "AND table_name NOT LIKE 'dw_fact_listening_event_%' " +
+            "ORDER BY table_name"
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getMaterializedViews() {
+        return jdbcTemplate.queryForList(
+            "SELECT matviewname AS view_name, ispopulated AS is_populated " +
+            "FROM pg_matviews WHERE schemaname = 'dw' " +
+            "ORDER BY matviewname"
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getDwIndexes() {
+        return jdbcTemplate.queryForList(
+            "SELECT tablename AS table_name, indexname AS index_name, indexdef AS index_definition " +
+            "FROM pg_indexes WHERE schemaname = 'dw' " +
+            "ORDER BY tablename, indexname"
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getPartitions() {
+        return jdbcTemplate.queryForList(
+            "SELECT inhrelid::regclass::text AS partition_name, " +
+            "COALESCE((SELECT reltuples::bigint FROM pg_class WHERE oid = inhrelid), 0) AS estimated_rows " +
+            "FROM pg_inherits WHERE inhparent = 'dw.dw_fact_listening_event'::regclass " +
+            "ORDER BY partition_name"
+        );
+    }
 }
