@@ -50,20 +50,17 @@ public class TrackService {
             Map<String, Artist> artistCache,
             Map<String, Album> albumCache
     ) {
-        // Genre cache is built lazily inside this call — "unknown" is looked up once and reused
         if (spotifyTrackUri != null && trackCache.containsKey(spotifyTrackUri)) {
             return trackCache.get(spotifyTrackUri);
         }
 
-        // Ensure "unknown" genre is pre-cached on first call to avoid repeated DB hits
-        // across all new track creations in the same import session
         Genre unknownGenre = findOrCreateGenre("unknown");
 
         Track track;
         if (spotifyTrackUri != null) {
-            track = trackRepository.findBySpotifyTrackUri(spotifyTrackUri)
-                    .map(existing -> ensureOltpRelations(existing, artistName, albumName, artistCache, albumCache, unknownGenre))
-                    .orElseGet(() -> createTrack(spotifyTrackUri, trackName, artistName, albumName, artistCache, albumCache, unknownGenre));
+            // Since caches are pre-populated, a cache miss guarantees the track does not exist in DB!
+            // Bypassing findBySpotifyTrackUri select statement completely!
+            track = createTrack(spotifyTrackUri, trackName, artistName, albumName, artistCache, albumCache, unknownGenre);
         } else {
             track = createTrack(null, trackName, artistName, albumName, artistCache, albumCache, unknownGenre);
         }
@@ -178,14 +175,38 @@ public class TrackService {
 
     // Cached artist lookup — avoids repeated findByArtistNameIgnoreCase during bulk import.
     private Artist findOrCreateArtistCached(String artistName, Map<String, Artist> cache) {
-        String key = artistName.toLowerCase();
-        return cache.computeIfAbsent(key, k -> findOrCreateArtist(artistName));
+        String key = artistName.toLowerCase().trim();
+        if (cache.containsKey(key)) {
+            return cache.get(key);
+        }
+        // Cache miss -> Guaranteed not in DB because cache is pre-populated!
+        // We can save directly bypassing findByArtistNameIgnoreCase select query!
+        String safeArtistName = normalizeValue(artistName, "Unknown Artist");
+        Artist artist = artistRepository.save(
+                Artist.builder()
+                        .artistName(safeArtistName)
+                        .build()
+        );
+        cache.put(key, artist);
+        return artist;
     }
 
     // Cached album lookup — avoids repeated findByAlbumNameIgnoreCase during bulk import.
     private Album findOrCreateAlbumCached(String albumName, Map<String, Album> cache) {
-        String key = albumName.toLowerCase();
-        return cache.computeIfAbsent(key, k -> findOrCreateAlbum(albumName));
+        String key = albumName.toLowerCase().trim();
+        if (cache.containsKey(key)) {
+            return cache.get(key);
+        }
+        // Cache miss -> Guaranteed not in DB because cache is pre-populated!
+        // We can save directly bypassing findByAlbumNameIgnoreCase select query!
+        String safeAlbumName = normalizeValue(albumName, "Unknown Album");
+        Album album = albumRepository.save(
+                Album.builder()
+                        .albumName(safeAlbumName)
+                        .build()
+        );
+        cache.put(key, album);
+        return album;
     }
     private Track ensureOltpRelations(Track track, String artistName, String albumName) {
         boolean changed = false;
@@ -264,6 +285,29 @@ public class TrackService {
                                 .name(safeGenreName)
                                 .build()
                 ));
+    }
+
+    @Transactional(readOnly = true)
+    public void prepopulateCaches(
+            Map<String, Track> trackCache,
+            Map<String, Artist> artistCache,
+            Map<String, Album> albumCache
+    ) {
+        for (Track t : trackRepository.findAll()) {
+            if (t.getSpotifyTrackUri() != null) {
+                trackCache.put(t.getSpotifyTrackUri(), t);
+            }
+        }
+        for (Artist a : artistRepository.findAll()) {
+            if (a.getArtistName() != null) {
+                artistCache.put(a.getArtistName().toLowerCase(), a);
+            }
+        }
+        for (Album al : albumRepository.findAll()) {
+            if (al.getAlbumName() != null) {
+                albumCache.put(al.getAlbumName().toLowerCase(), al);
+            }
+        }
     }
 
     private String normalizeValue(String value, String fallback) {

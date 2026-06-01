@@ -2,6 +2,7 @@ package com.alltimewrapped.backend.controller;
 
 import com.alltimewrapped.backend.dto.DailyActivityDTO;
 import com.alltimewrapped.backend.dto.UserStatsResponse;
+import com.alltimewrapped.backend.dto.PeriodStatsDTO;
 import com.alltimewrapped.backend.service.StatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -17,6 +18,17 @@ import java.util.Map;
 public class StatsController {
 
     private final StatsService statsService;
+
+    @GetMapping("/user/{userId}/period-metrics")
+    public PeriodStatsDTO getPeriodMetrics(
+            @PathVariable Long userId,
+            @RequestParam(required = false, defaultValue = "month") String period,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate anchor,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate customStart,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate customEnd
+    ) {
+        return statsService.getPeriodStats(userId, period, anchor, customStart, customEnd);
+    }
 
     // returns the main statistics needed for the dashboard
     // if from and to are missing, the response is generated for the full imported history

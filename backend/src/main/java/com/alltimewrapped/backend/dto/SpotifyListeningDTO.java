@@ -20,4 +20,10 @@ public class SpotifyListeningDTO {
 
     private String spotify_track_uri;
     private Boolean skipped;
+
+    // Standard format fallback fields
+    private String endTime;
+    private String artistName;
+    private String trackName;
+    private Long msPlayed;
 }

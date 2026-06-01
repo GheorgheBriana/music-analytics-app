@@ -679,9 +679,42 @@
     margin-top: 18px;
 }
 
-.wide-chart-box {
-    overflow-x: auto;
+.heatmap-scroll-container {
+    overflow-x: auto !important;
+    width: 100%;
+    margin-top: 18px;
+    -ms-overflow-style: none !important;  /* IE and Edge */
+    scrollbar-width: none !important;  /* Firefox */
 }
+.heatmap-scroll-container::-webkit-scrollbar {
+    display: none !important;  /* Chrome, Safari and Opera */
+    width: 0 !important;
+    height: 0 !important;
+}
+
+
+/* Sleek custom scrollbars for dark mode scrollable lists */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    transition: background 0.2s ease;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(29, 185, 84, 0.5); /* Glowing Spotify Green on hover */
+}
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) rgba(255, 255, 255, 0.02);
+}
+
 
 .music-insights-card {
     display: flex;
@@ -756,3 +789,138 @@ button:disabled {
         grid-template-columns: 1fr;
     }
 }
+
+/* Friend Request Notification System Styles */
+.friends-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ff4444;
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    line-height: 1;
+    margin-left: 8px;
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+    animation: badgePulse 2s infinite;
+}
+
+@keyframes badgePulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.6);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(255, 68, 68, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
+    }
+}
+
+.friend-request-toast {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 9999;
+    background: rgba(23, 25, 35, 0.85);
+    backdrop-filter: blur(25px);
+    border: 1px solid rgba(29, 185, 84, 0.3);
+    border-radius: 20px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(29, 185, 84, 0.1);
+    animation: toastSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: 400px;
+    width: calc(100vw - 48px);
+}
+
+@keyframes toastSlideIn {
+    from {
+        transform: translateY(-20px) scale(0.95);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toast-icon {
+    font-size: 20px;
+    animation: bounceIcon 2s infinite;
+}
+
+@keyframes bounceIcon {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+.toast-text {
+    margin: 0;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    font-family: 'Outfit', sans-serif;
+    line-height: 1.4;
+}
+
+.toast-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toast-action-btn {
+    border: none;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.toast-action-btn.view {
+    background: #1db954;
+    color: white;
+    padding: 8px 16px;
+    box-shadow: 0 4px 12px rgba(29, 185, 84, 0.2);
+}
+
+.toast-action-btn.view:hover {
+    background: #1ed760;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);
+}
+
+.toast-action-btn.close {
+    background: rgba(255, 255, 255, 0.05);
+    color: #c7c7d1;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.toast-action-btn.close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+

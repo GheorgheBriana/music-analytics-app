@@ -68,7 +68,8 @@ public class AdminService {
         Map<String, Long> factsByPartition = jdbcTemplate.queryForList(
             "SELECT '2023' AS year, COUNT(*) AS cnt FROM dw.dw_fact_listening_event_2023 " +
             "UNION ALL SELECT '2024', COUNT(*) FROM dw.dw_fact_listening_event_2024 " +
-            "UNION ALL SELECT '2025', COUNT(*) FROM dw.dw_fact_listening_event_2025"
+            "UNION ALL SELECT '2025', COUNT(*) FROM dw.dw_fact_listening_event_2025 " +
+            "UNION ALL SELECT 'other', COUNT(*) FROM dw.dw_fact_listening_event_default"
         ).stream().collect(Collectors.toMap(
             row -> (String) row.get("year"),
             row -> ((Number) row.get("cnt")).longValue()
@@ -133,7 +134,7 @@ public class AdminService {
     public AdminDataQualityDto getDataQualityStats() {
         long oltpRecords = listeningRecordRepository.count();
         long dwFacts = dwFactListeningEventRepository.count();
-        double coverage = oltpRecords == 0 ? 0 : (dwFacts * 100.0) / oltpRecords;
+        double coverage = oltpRecords == 0 ? 0 : Math.min(100.0, (dwFacts * 100.0) / oltpRecords);
 
         long unknownGenreFacts = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM dw.dw_fact_listening_event f " +

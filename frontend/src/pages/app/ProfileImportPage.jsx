@@ -115,7 +115,17 @@ function ProfileImportPage() {
                 throw new Error('Upload failed')
             }
 
-            setUploadStatus('Upload successful! Processing records in background...')
+            const result = await response.json()
+
+            if (result && result.importedRecords !== undefined) {
+                setImportProgress(100)
+                setIsImporting(false)
+                setUploadStatus(
+                    `Import completed successfully: ${result.importedRecords} imported, ${result.duplicateRecords} duplicates, ${result.skippedRecords} skipped.`
+                )
+            } else {
+                setUploadStatus('Upload successful! Processing records in background...')
+            }
         } catch (error) {
             setUploadStatus('Something went wrong while uploading the ZIP file.')
             setIsImporting(false)
@@ -200,8 +210,12 @@ function ProfileImportPage() {
                         onChange={handleFileChange}
                     />
 
-                    <button className="upload-btn" onClick={handleUpload}>
-                        Upload Spotify ZIP
+                    <button 
+                        className="upload-btn" 
+                        onClick={handleUpload}
+                        disabled={isImporting}
+                    >
+                        {isImporting ? 'Importing...' : 'Upload Spotify ZIP'}
                     </button>
 
                     {isImporting && (

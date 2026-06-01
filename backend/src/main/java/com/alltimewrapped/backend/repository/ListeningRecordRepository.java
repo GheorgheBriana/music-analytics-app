@@ -323,36 +323,36 @@ public interface ListeningRecordRepository extends JpaRepository<ListeningRecord
             @Param("toDateTimeExclusive") OffsetDateTime toDateTimeExclusive
     );
         
-        @Query(
-                value = """
-                        SELECT lr.*
-                        FROM oltp.listening_records lr
-                        WHERE NOT EXISTS (
-                        SELECT 1
-                        FROM dw.dw_fact_listening_event f
-                        WHERE f.original_listening_record_id = lr.id
-                        )
-                        ORDER BY lr.id
-                        LIMIT :limit
-                        """,
-                nativeQuery = true
-        )
-        List<ListeningRecord> findRecordsNotInWarehouse(@Param("limit") int limit);
+        @Query("""
+            SELECT lr
+            FROM ListeningRecord lr
+            JOIN FETCH lr.track t
+            LEFT JOIN FETCH t.album al
+            LEFT JOIN FETCH t.artists ar
+            LEFT JOIN FETCH t.genres g
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM DwFactListeningEvent f
+                WHERE f.originalListeningRecordId = lr.id
+            )
+            ORDER BY lr.id ASC
+        """)
+        List<ListeningRecord> findRecordsNotInWarehouse(org.springframework.data.domain.Pageable pageable);
 
-        @Query(
-                value = """
-                        SELECT lr.*
-                        FROM oltp.listening_records lr
-                        WHERE lr.user_id = :userId
-                          AND NOT EXISTS (
-                            SELECT 1
-                            FROM dw.dw_fact_listening_event f
-                            WHERE f.original_listening_record_id = lr.id
-                          )
-                        ORDER BY lr.id
-                        LIMIT :limit
-                        """,
-                nativeQuery = true
-        )
-        List<ListeningRecord> findRecordsNotInWarehouseForUser(@Param("userId") Long userId, @Param("limit") int limit);
+        @Query("""
+            SELECT lr
+            FROM ListeningRecord lr
+            JOIN FETCH lr.track t
+            LEFT JOIN FETCH t.album al
+            LEFT JOIN FETCH t.artists ar
+            LEFT JOIN FETCH t.genres g
+            WHERE lr.user.id = :userId
+              AND NOT EXISTS (
+                SELECT 1
+                FROM DwFactListeningEvent f
+                WHERE f.originalListeningRecordId = lr.id
+              )
+            ORDER BY lr.id ASC
+        """)
+        List<ListeningRecord> findRecordsNotInWarehouseForUser(@Param("userId") Long userId, org.springframework.data.domain.Pageable pageable);
 }

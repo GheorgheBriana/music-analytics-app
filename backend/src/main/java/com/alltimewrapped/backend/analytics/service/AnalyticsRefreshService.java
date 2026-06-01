@@ -5,6 +5,7 @@ import com.alltimewrapped.backend.analytics.repository.*;
 import com.alltimewrapped.backend.model.*;
 import com.alltimewrapped.backend.repository.ListeningRecordRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,9 +18,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Types;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AnalyticsRefreshService {
 
     private static final long UNKNOWN_ARTIST_ID = -1L;
@@ -38,20 +45,22 @@ public class AnalyticsRefreshService {
     private final DwDimPlatformRepository dwDimPlatformRepository;
     private final DwDimSourceRepository dwDimSourceRepository;
     private final DwFactListeningEventRepository dwFactListeningEventRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Transactional
     public Map<String, Object> refreshWarehouse(int limit) {
-        List<ListeningRecord> records = listeningRecordRepository.findRecordsNotInWarehouse(limit);
-        return processRecordsIntoWarehouse(records, limit);
+        return processRecordsIntoWarehouseFast(null, limit);
     }
 
     @Transactional
     public Map<String, Object> refreshWarehouseForUser(Long userId, int limit) {
-        List<ListeningRecord> records = listeningRecordRepository.findRecordsNotInWarehouseForUser(userId, limit);
-        return processRecordsIntoWarehouse(records, limit);
+        return processRecordsIntoWarehouseFast(userId, limit);
     }
 
     private Map<String, Object> processRecordsIntoWarehouse(List<ListeningRecord> records, int limit) {
+        log.info("[DW REFRESH] Processing {} records into DW dimensions & facts...", records.size());
+        long startProcessing = System.currentTimeMillis();
+
         int processedRecords = 0;
         int insertedFacts = 0;
         int skippedInvalidRecords = 0;
@@ -69,6 +78,17 @@ public class AnalyticsRefreshService {
         Map<String, DwDimTime> timeCache = new HashMap<>();
         Map<String, DwDimPlatform> platformCache = new HashMap<>();
         Map<String, DwDimSource> sourceCache = new HashMap<>();
+
+        long userSyncTime = 0;
+        long trackSyncTime = 0;
+        long artistSyncTime = 0;
+        long albumSyncTime = 0;
+        long genreSyncTime = 0;
+        long dateSyncTime = 0;
+        long timeSyncTime = 0;
+        long platformSyncTime = 0;
+        long sourceSyncTime = 0;
+        long factInsertTime = 0;
 
         for (ListeningRecord record : records) {
             processedRecords++;
@@ -91,15 +111,42 @@ public class AnalyticsRefreshService {
                 recordsWithFallbackDimensions++;
             }
 
+            long t0 = System.nanoTime();
             DwDimUser userDim = findOrCreateUser(record.getUser(), userCache);
+            long t1 = System.nanoTime();
+            userSyncTime += (t1 - t0);
+
             DwDimTrack trackDim = findOrCreateTrack(track, trackCache);
+            long t2 = System.nanoTime();
+            trackSyncTime += (t2 - t1);
+
             DwDimArtist artistDim = findOrCreateArtist(primaryArtist, artistCache);
+            long t3 = System.nanoTime();
+            artistSyncTime += (t3 - t2);
+
             DwDimAlbum albumDim = findOrCreateAlbum(album, albumCache);
+            long t4 = System.nanoTime();
+            albumSyncTime += (t4 - t3);
+
             DwDimGenre genreDim = findOrCreateGenre(primaryGenre, genreCache);
+            long t5 = System.nanoTime();
+            genreSyncTime += (t5 - t4);
+
             DwDimDate dateDim = findOrCreateDate(record.getPlayedAt(), dateCache);
+            long t6 = System.nanoTime();
+            dateSyncTime += (t6 - t5);
+
             DwDimTime timeDim = findOrCreateTime(record.getPlayedAt(), timeCache);
+            long t7 = System.nanoTime();
+            timeSyncTime += (t7 - t6);
+
             DwDimPlatform platformDim = findOrCreatePlatform(record.getPlatform(), platformCache);
+            long t8 = System.nanoTime();
+            platformSyncTime += (t8 - t7);
+
             DwDimSource sourceDim = findOrCreateSource(record.getSource(), sourceCache);
+            long t9 = System.nanoTime();
+            sourceSyncTime += (t9 - t8);
 
             Long msPlayed = record.getMsPlayed() != null ? record.getMsPlayed() : 0L;
             Double minutesPlayed = msPlayed / 60000.0;
@@ -127,15 +174,33 @@ public class AnalyticsRefreshService {
             insertedFacts++;
 
             if (factBatch.size() >= FACT_BATCH_SIZE) {
-                dwFactListeningEventRepository.saveAll(factBatch);
-                factBatch.clear();
+                log.info("[DW REFRESH] Saving batch of {} facts...", factBatch.size());
+                long fStart = System.currentTimeMillis();
+                saveFactBatch(factBatch);
+                factInsertTime += (System.currentTimeMillis() - fStart);
             }
         }
 
         // flush remaining facts
         if (!factBatch.isEmpty()) {
-            dwFactListeningEventRepository.saveAll(factBatch);
+            log.info("[DW REFRESH] Saving final batch of {} facts...", factBatch.size());
+            long fStart = System.currentTimeMillis();
+            saveFactBatch(factBatch);
+            factInsertTime += (System.currentTimeMillis() - fStart);
         }
+
+        long totalProcTime = System.currentTimeMillis() - startProcessing;
+        log.info("[DW REFRESH] Dimension User sync finished. Total time: {} ms", String.format("%.2f", userSyncTime / 1_000_000.0));
+        log.info("[DW REFRESH] Dimension Track sync finished. Total time: {} ms", String.format("%.2f", trackSyncTime / 1_000_000.0));
+        log.info("[DW REFRESH] Dimension Artist sync finished. Total time: {} ms", String.format("%.2f", artistSyncTime / 1_000_000.0));
+        log.info("[DW REFRESH] Dimension Album sync finished. Total time: {} ms", String.format("%.2f", albumSyncTime / 1_000_000.0));
+        log.info("[DW REFRESH] Dimension Genre sync finished. Total time: {} ms", String.format("%.2f", genreSyncTime / 1_000_000.0));
+        log.info("[DW REFRESH] Dimension Date sync finished. Total time: {} ms", String.format("%.2f", dateSyncTime / 1_000_000.0));
+        log.info("[DW REFRESH] Dimension Time sync finished. Total time: {} ms", String.format("%.2f", timeSyncTime / 1_000_000.0));
+        log.info("[DW REFRESH] Dimension Platform sync finished. Total time: {} ms", String.format("%.2f", platformSyncTime / 1_000_000.0));
+        log.info("[DW REFRESH] Dimension Source sync finished. Total time: {} ms", String.format("%.2f", sourceSyncTime / 1_000_000.0));
+        log.info("[DW REFRESH] Fact insert finished. Total time: {} ms", factInsertTime);
+        log.info("[DW REFRESH] Completed processRecordsIntoWarehouse for {} records in {} ms", records.size(), totalProcTime);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("message", "Data Warehouse refresh batch completed successfully");
@@ -388,11 +453,12 @@ public class AnalyticsRefreshService {
     }
 
     private Double calculateCompletionRate(Long msPlayed, Long durationMs) {
-        if (msPlayed == null || durationMs == null || durationMs <= 0) {
+        if (msPlayed == null) {
             return null;
         }
 
-        double rate = msPlayed.doubleValue() / durationMs.doubleValue();
+        long duration = (durationMs != null && durationMs > 0) ? durationMs : 200000L; // Fallback to 200k ms (3m 20s)
+        double rate = msPlayed.doubleValue() / (double) duration;
         return Math.min(rate, 1.0);
     }
 
@@ -412,11 +478,521 @@ public class AnalyticsRefreshService {
         return "night";
     }
 
+    private void saveFactBatch(List<DwFactListeningEvent> factBatch) {
+        String sql = """
+            INSERT INTO dw.dw_fact_listening_event 
+            (original_listening_record_id, user_key, track_key, artist_key, album_key, genre_key, date_key, time_key, platform_key, source_key, ms_played, minutes_played, play_count, skipped, completion_rate)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                DwFactListeningEvent f = factBatch.get(i);
+                ps.setLong(1, f.getOriginalListeningRecordId());
+                ps.setLong(2, f.getUser().getUserKey());
+                ps.setLong(3, f.getTrack().getTrackKey());
+                ps.setLong(4, f.getArtist().getArtistKey());
+                ps.setLong(5, f.getAlbum().getAlbumKey());
+                ps.setLong(6, f.getGenre().getGenreKey());
+                ps.setLong(7, f.getDate().getDateKey());
+                ps.setLong(8, f.getTime().getTimeKey());
+                ps.setLong(9, f.getPlatform().getPlatformKey());
+                ps.setLong(10, f.getSource().getSourceKey());
+                ps.setLong(11, f.getMsPlayed());
+                ps.setDouble(12, f.getMinutesPlayed());
+                ps.setInt(13, f.getPlayCount());
+
+                if (f.getSkipped() != null) {
+                    ps.setBoolean(14, f.getSkipped());
+                } else {
+                    ps.setNull(14, Types.BOOLEAN);
+                }
+
+                if (f.getCompletionRate() != null) {
+                    ps.setDouble(15, f.getCompletionRate());
+                } else {
+                    ps.setNull(15, Types.DOUBLE);
+                }
+            }
+
+            @Override
+            public int getBatchSize() {
+                return factBatch.size();
+            }
+        });
+
+        log.debug("Bulk inserted batch of {} facts into DW via JDBC", factBatch.size());
+        factBatch.clear();
+    }
+
     private String normalize(String value, String fallback) {
         if (value == null || value.isBlank()) {
             return fallback;
         }
 
         return value.trim();
+    }
+
+    /**
+     * Fast OLTP -> DW sync.
+     *
+     * The previous implementation loaded OLTP rows as JPA entities and then resolved every DW
+     * dimension through repository calls. Even with a small in-memory cache, this still produced
+     * many small SELECT/INSERT operations and many lazy relation loads.
+     *
+     * This implementation keeps the ETL work inside PostgreSQL:
+     * 1. save the pending OLTP ids in a temporary table;
+     * 2. insert missing dimension rows with INSERT ... SELECT DISTINCT;
+     * 3. insert the fact rows with one INSERT ... SELECT and joins to dimensions.
+     */
+    private Map<String, Object> processRecordsIntoWarehouseFast(Long userId, int limit) {
+        long startedAt = System.currentTimeMillis();
+        int safeLimit = Math.max(1, limit);
+
+        String trackArtistsTable = resolveRelationTable("oltp.track_artists", "track_artists");
+        String trackGenresTable = resolveRelationTable("oltp.track_genres", "track_genres");
+
+        jdbcTemplate.execute("DROP TABLE IF EXISTS tmp_dw_pending_records");
+
+        if (userId == null) {
+            jdbcTemplate.update("""
+                    CREATE TEMP TABLE tmp_dw_pending_records ON COMMIT DROP AS
+                    SELECT lr.id
+                    FROM oltp.listening_records lr
+                    WHERE NOT EXISTS (
+                        SELECT 1
+                        FROM dw.dw_fact_listening_event f
+                        WHERE f.original_listening_record_id = lr.id
+                    )
+                    ORDER BY lr.id
+                    LIMIT ?
+                    """, safeLimit);
+        } else {
+            jdbcTemplate.update("""
+                    CREATE TEMP TABLE tmp_dw_pending_records ON COMMIT DROP AS
+                    SELECT lr.id
+                    FROM oltp.listening_records lr
+                    WHERE lr.user_id = ?
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM dw.dw_fact_listening_event f
+                          WHERE f.original_listening_record_id = lr.id
+                      )
+                    ORDER BY lr.id
+                    LIMIT ?
+                    """, userId, safeLimit);
+        }
+
+        jdbcTemplate.execute("CREATE INDEX idx_tmp_dw_pending_records_id ON tmp_dw_pending_records(id)");
+
+        Integer pendingRecords = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM tmp_dw_pending_records",
+                Integer.class
+        );
+
+        if (pendingRecords == null || pendingRecords == 0) {
+            Map<String, Object> emptyResult = new LinkedHashMap<>();
+            emptyResult.put("message", "No new OLTP records found for Data Warehouse refresh");
+            emptyResult.put("limit", safeLimit);
+            emptyResult.put("processedRecords", 0);
+            emptyResult.put("insertedFacts", 0);
+            emptyResult.put("skippedInvalidRecords", 0);
+            emptyResult.put("recordsWithFallbackDimensions", 0);
+            emptyResult.put("totalFacts", dwFactListeningEventRepository.count());
+            emptyResult.put("durationMs", System.currentTimeMillis() - startedAt);
+            emptyResult.put("mode", "FAST_SQL");
+            return emptyResult;
+        }
+
+        log.info("[DW FAST REFRESH] Starting set-based sync for {} pending records, userId={}", pendingRecords, userId);
+
+        int insertedUnknownDimensions = insertUnknownDimensions();
+        int insertedUsers = insertUserDimensions();
+        int insertedTracks = insertTrackDimensions();
+        int insertedArtists = insertArtistDimensions(trackArtistsTable);
+        int insertedAlbums = insertAlbumDimensions();
+        int insertedGenres = insertGenreDimensions(trackGenresTable);
+        int insertedDates = insertDateDimensions();
+        int insertedTimes = insertTimeDimensions();
+        int insertedPlatforms = insertPlatformDimensions();
+        int insertedSources = insertSourceDimensions();
+        int insertedFacts = insertFactRows(trackArtistsTable, trackGenresTable);
+
+        long durationMs = System.currentTimeMillis() - startedAt;
+
+        log.info(
+                "[DW FAST REFRESH] Completed {} fact inserts from {} pending records in {} ms",
+                insertedFacts,
+                pendingRecords,
+                durationMs
+        );
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("message", "Data Warehouse fast refresh completed successfully");
+        result.put("mode", "FAST_SQL");
+        result.put("limit", safeLimit);
+        result.put("userId", userId);
+        result.put("processedRecords", pendingRecords);
+        result.put("insertedFacts", insertedFacts);
+        result.put("skippedInvalidRecords", Math.max(0, pendingRecords - insertedFacts));
+        result.put("recordsWithFallbackDimensions", countRecordsWithFallbackDimensions(trackArtistsTable, trackGenresTable));
+        result.put("insertedUnknownDimensions", insertedUnknownDimensions);
+        result.put("insertedUsers", insertedUsers);
+        result.put("insertedTracks", insertedTracks);
+        result.put("insertedArtists", insertedArtists);
+        result.put("insertedAlbums", insertedAlbums);
+        result.put("insertedGenres", insertedGenres);
+        result.put("insertedDates", insertedDates);
+        result.put("insertedTimes", insertedTimes);
+        result.put("insertedPlatforms", insertedPlatforms);
+        result.put("insertedSources", insertedSources);
+        result.put("totalFacts", dwFactListeningEventRepository.count());
+        result.put("durationMs", durationMs);
+
+        return result;
+    }
+
+    private String resolveRelationTable(String preferredName, String fallbackName) {
+        Boolean preferredExists = jdbcTemplate.queryForObject(
+                "SELECT to_regclass(?) IS NOT NULL",
+                Boolean.class,
+                preferredName
+        );
+
+        if (Boolean.TRUE.equals(preferredExists)) {
+            return preferredName;
+        }
+
+        return fallbackName;
+    }
+
+    private int insertUnknownDimensions() {
+        int inserted = 0;
+
+        inserted += jdbcTemplate.update("""
+                INSERT INTO dw.dw_dim_artist (original_artist_id, artist_name, spotify_artist_uri)
+                VALUES (-1, 'Unknown Artist', NULL)
+                ON CONFLICT (original_artist_id) DO NOTHING
+                """);
+
+        inserted += jdbcTemplate.update("""
+                INSERT INTO dw.dw_dim_album (original_album_id, album_name, release_year, album_type)
+                VALUES (-1, 'Unknown Album', NULL, NULL)
+                ON CONFLICT (original_album_id) DO NOTHING
+                """);
+
+        inserted += jdbcTemplate.update("""
+                INSERT INTO dw.dw_dim_genre (original_genre_id, genre_name)
+                VALUES (-1, 'unknown')
+                ON CONFLICT (original_genre_id) DO NOTHING
+                """);
+
+        return inserted;
+    }
+
+    private int insertUserDimensions() {
+        return jdbcTemplate.update("""
+                INSERT INTO dw.dw_dim_user (original_user_id, username, email, country)
+                SELECT DISTINCT
+                    u.id,
+                    COALESCE(NULLIF(TRIM(u.username), ''), 'unknown_user'),
+                    u.email,
+                    u.spotify_country
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                JOIN oltp.app_users u ON u.id = lr.user_id
+                WHERE lr.user_id IS NOT NULL
+                ON CONFLICT (original_user_id) DO NOTHING
+                """);
+    }
+
+    private int insertTrackDimensions() {
+        return jdbcTemplate.update("""
+                INSERT INTO dw.dw_dim_track (original_track_id, spotify_track_uri, track_name, duration_ms, image_url)
+                SELECT DISTINCT
+                    t.id,
+                    t.spotify_track_uri,
+                    COALESCE(NULLIF(TRIM(t.track_name), ''), 'Unknown Track'),
+                    t.duration_ms,
+                    t.image_url
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                JOIN oltp.tracks t ON t.id = lr.track_id
+                WHERE lr.track_id IS NOT NULL
+                ON CONFLICT (original_track_id) DO NOTHING
+                """);
+    }
+
+    private int insertArtistDimensions(String trackArtistsTable) {
+        String sql = """
+                INSERT INTO dw.dw_dim_artist (original_artist_id, artist_name, spotify_artist_uri)
+                SELECT DISTINCT
+                    COALESCE(a.id, -1),
+                    COALESCE(NULLIF(TRIM(a.artist_name), ''), 'Unknown Artist'),
+                    a.spotify_artist_uri
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                JOIN oltp.tracks t ON t.id = lr.track_id
+                LEFT JOIN LATERAL (
+                    SELECT artist.id, artist.artist_name, artist.spotify_artist_uri
+                    FROM %s ta
+                    JOIN oltp.artists artist ON artist.id = ta.artist_id
+                    WHERE ta.track_id = t.id
+                    ORDER BY artist.id
+                    LIMIT 1
+                ) a ON true
+                ON CONFLICT (original_artist_id) DO NOTHING
+                """.formatted(trackArtistsTable);
+
+        return jdbcTemplate.update(sql);
+    }
+
+    private int insertAlbumDimensions() {
+        return jdbcTemplate.update("""
+                INSERT INTO dw.dw_dim_album (original_album_id, album_name, release_year, album_type)
+                SELECT DISTINCT
+                    COALESCE(album.id, -1),
+                    COALESCE(NULLIF(TRIM(album.album_name), ''), 'Unknown Album'),
+                    EXTRACT(YEAR FROM album.release_date)::int,
+                    album.album_type
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                JOIN oltp.tracks t ON t.id = lr.track_id
+                LEFT JOIN oltp.albums album ON album.id = t.album_id
+                ON CONFLICT (original_album_id) DO NOTHING
+                """);
+    }
+
+    private int insertGenreDimensions(String trackGenresTable) {
+        String sql = """
+                INSERT INTO dw.dw_dim_genre (original_genre_id, genre_name)
+                SELECT DISTINCT
+                    COALESCE(g.id, -1),
+                    COALESCE(NULLIF(TRIM(g.name), ''), 'unknown')
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                JOIN oltp.tracks t ON t.id = lr.track_id
+                LEFT JOIN LATERAL (
+                    SELECT genre.id, genre.name
+                    FROM %s tg
+                    JOIN oltp.genres genre ON genre.id = tg.genre_id
+                    WHERE tg.track_id = t.id
+                    ORDER BY genre.id
+                    LIMIT 1
+                ) g ON true
+                ON CONFLICT (original_genre_id) DO NOTHING
+                """.formatted(trackGenresTable);
+
+        return jdbcTemplate.update(sql);
+    }
+
+    private int insertDateDimensions() {
+        return jdbcTemplate.update("""
+                INSERT INTO dw.dw_dim_date (
+                    date_key,
+                    full_date,
+                    day,
+                    month,
+                    month_name,
+                    quarter,
+                    year,
+                    day_of_week,
+                    day_name,
+                    is_weekend
+                )
+                SELECT DISTINCT
+                    TO_CHAR(lr.played_at::date, 'YYYYMMDD')::bigint,
+                    lr.played_at::date,
+                    EXTRACT(DAY FROM lr.played_at)::int,
+                    EXTRACT(MONTH FROM lr.played_at)::int,
+                    TRIM(TO_CHAR(lr.played_at, 'Month')),
+                    EXTRACT(QUARTER FROM lr.played_at)::int,
+                    EXTRACT(YEAR FROM lr.played_at)::int,
+                    EXTRACT(ISODOW FROM lr.played_at)::int,
+                    TRIM(TO_CHAR(lr.played_at, 'Day')),
+                    EXTRACT(ISODOW FROM lr.played_at)::int >= 6
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                WHERE lr.played_at IS NOT NULL
+                ON CONFLICT (full_date) DO NOTHING
+                """);
+    }
+
+    private int insertTimeDimensions() {
+        return jdbcTemplate.update("""
+                INSERT INTO dw.dw_dim_time (hour, minute, part_of_day)
+                SELECT DISTINCT
+                    EXTRACT(HOUR FROM lr.played_at)::int,
+                    EXTRACT(MINUTE FROM lr.played_at)::int,
+                    CASE
+                        WHEN EXTRACT(HOUR FROM lr.played_at)::int >= 5
+                             AND EXTRACT(HOUR FROM lr.played_at)::int < 12 THEN 'morning'
+                        WHEN EXTRACT(HOUR FROM lr.played_at)::int >= 12
+                             AND EXTRACT(HOUR FROM lr.played_at)::int < 17 THEN 'afternoon'
+                        WHEN EXTRACT(HOUR FROM lr.played_at)::int >= 17
+                             AND EXTRACT(HOUR FROM lr.played_at)::int < 22 THEN 'evening'
+                        ELSE 'night'
+                    END
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                WHERE lr.played_at IS NOT NULL
+                ON CONFLICT (hour, minute) DO NOTHING
+                """);
+    }
+
+    private int insertPlatformDimensions() {
+        return jdbcTemplate.update("""
+                INSERT INTO dw.dw_dim_platform (platform_name)
+                SELECT DISTINCT COALESCE(NULLIF(TRIM(lr.platform), ''), 'unknown')
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                ON CONFLICT (platform_name) DO NOTHING
+                """);
+    }
+
+    private int insertSourceDimensions() {
+        return jdbcTemplate.update("""
+                INSERT INTO dw.dw_dim_source (source_name)
+                SELECT DISTINCT COALESCE(NULLIF(TRIM(lr.source::text), ''), 'unknown')
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                ON CONFLICT (source_name) DO NOTHING
+                """);
+    }
+
+    private int insertFactRows(String trackArtistsTable, String trackGenresTable) {
+        String sql = """
+                INSERT INTO dw.dw_fact_listening_event
+                    (
+                        original_listening_record_id,
+                        user_key,
+                        track_key,
+                        artist_key,
+                        album_key,
+                        genre_key,
+                        date_key,
+                        time_key,
+                        platform_key,
+                        source_key,
+                        ms_played,
+                        minutes_played,
+                        play_count,
+                        skipped,
+                        completion_rate
+                    )
+                SELECT
+                    lr.id,
+                    du.user_key,
+                    dt.track_key,
+                    COALESCE(da.artist_key, unknown_artist.artist_key),
+                    COALESCE(dal.album_key, unknown_album.album_key),
+                    COALESCE(dg.genre_key, unknown_genre.genre_key),
+                    dd.date_key,
+                    dtime.time_key,
+                    dp.platform_key,
+                    ds.source_key,
+                    COALESCE(lr.ms_played, 0),
+                    COALESCE(lr.ms_played, 0) / 60000.0,
+                    1,
+                    lr.skipped,
+                    CASE
+                        WHEN t.duration_ms IS NOT NULL AND t.duration_ms > 0 THEN 
+                            LEAST(COALESCE(lr.ms_played, 0)::double precision / t.duration_ms::double precision, 1.0)
+                        ELSE 
+                            LEAST(COALESCE(lr.ms_played, 0)::double precision / 200000.0, 1.0)
+                    END
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                JOIN oltp.tracks t ON t.id = lr.track_id
+                JOIN dw.dw_dim_user du ON du.original_user_id = lr.user_id
+                JOIN dw.dw_dim_track dt ON dt.original_track_id = t.id
+                JOIN dw.dw_dim_date dd ON dd.full_date = lr.played_at::date
+                JOIN dw.dw_dim_time dtime
+                    ON dtime.hour = EXTRACT(HOUR FROM lr.played_at)::int
+                   AND dtime.minute = EXTRACT(MINUTE FROM lr.played_at)::int
+                JOIN LATERAL (
+                    SELECT platform_key
+                    FROM dw.dw_dim_platform platform_dim
+                    WHERE LOWER(platform_dim.platform_name) = LOWER(COALESCE(NULLIF(TRIM(lr.platform), ''), 'unknown'))
+                    ORDER BY platform_key
+                    LIMIT 1
+                ) dp ON true
+                JOIN LATERAL (
+                    SELECT source_key
+                    FROM dw.dw_dim_source source_dim
+                    WHERE LOWER(source_dim.source_name) = LOWER(COALESCE(NULLIF(TRIM(lr.source::text), ''), 'unknown'))
+                    ORDER BY source_key
+                    LIMIT 1
+                ) ds ON true
+                JOIN dw.dw_dim_artist unknown_artist ON unknown_artist.original_artist_id = -1
+                JOIN dw.dw_dim_album unknown_album ON unknown_album.original_album_id = -1
+                JOIN dw.dw_dim_genre unknown_genre ON unknown_genre.original_genre_id = -1
+                LEFT JOIN LATERAL (
+                    SELECT artist.id
+                    FROM %s ta
+                    JOIN oltp.artists artist ON artist.id = ta.artist_id
+                    WHERE ta.track_id = t.id
+                    ORDER BY artist.id
+                    LIMIT 1
+                ) primary_artist ON true
+                LEFT JOIN dw.dw_dim_artist da
+                    ON da.original_artist_id = COALESCE(primary_artist.id, -1)
+                LEFT JOIN oltp.albums album ON album.id = t.album_id
+                LEFT JOIN dw.dw_dim_album dal
+                    ON dal.original_album_id = COALESCE(album.id, -1)
+                LEFT JOIN LATERAL (
+                    SELECT genre.id
+                    FROM %s tg
+                    JOIN oltp.genres genre ON genre.id = tg.genre_id
+                    WHERE tg.track_id = t.id
+                    ORDER BY genre.id
+                    LIMIT 1
+                ) primary_genre ON true
+                LEFT JOIN dw.dw_dim_genre dg
+                    ON dg.original_genre_id = COALESCE(primary_genre.id, -1)
+                WHERE lr.user_id IS NOT NULL
+                  AND lr.track_id IS NOT NULL
+                  AND lr.played_at IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM dw.dw_fact_listening_event existing_fact
+                      WHERE existing_fact.original_listening_record_id = lr.id
+                  )
+                """.formatted(trackArtistsTable, trackGenresTable);
+
+        return jdbcTemplate.update(sql);
+    }
+
+    private int countRecordsWithFallbackDimensions(String trackArtistsTable, String trackGenresTable) {
+        String sql = """
+                SELECT COUNT(*)
+                FROM tmp_dw_pending_records p
+                JOIN oltp.listening_records lr ON lr.id = p.id
+                JOIN oltp.tracks t ON t.id = lr.track_id
+                LEFT JOIN oltp.albums album ON album.id = t.album_id
+                LEFT JOIN LATERAL (
+                    SELECT artist.id
+                    FROM %s ta
+                    JOIN oltp.artists artist ON artist.id = ta.artist_id
+                    WHERE ta.track_id = t.id
+                    ORDER BY artist.id
+                    LIMIT 1
+                ) primary_artist ON true
+                LEFT JOIN LATERAL (
+                    SELECT genre.id
+                    FROM %s tg
+                    JOIN oltp.genres genre ON genre.id = tg.genre_id
+                    WHERE tg.track_id = t.id
+                    ORDER BY genre.id
+                    LIMIT 1
+                ) primary_genre ON true
+                WHERE primary_artist.id IS NULL
+                   OR album.id IS NULL
+                   OR primary_genre.id IS NULL
+                """.formatted(trackArtistsTable, trackGenresTable);
+
+        Integer result = jdbcTemplate.queryForObject(sql, Integer.class);
+        return result != null ? result : 0;
     }
 }

@@ -451,31 +451,33 @@ function BIDashboardPage() {
         if (!reports?.heatmap || reports.heatmap.length === 0) return <div className="chart-box">{renderEmpty('No heatmap data.')}</div>
 
         return (
-            <div className="chart-box wide-chart-box" style={{ gridColumn: '1 / -1' }}>
+            <div className="chart-box" style={{ gridColumn: '1 / -1' }}>
                 <h3>Listening heatmap</h3>
                 <p className="chart-description">Darker cells show hours with higher listening activity.</p>
-                <div className="listening-heatmap-grid">
-                    <div className="heatmap-corner" />
-                    {HOURS.map((hour) => <div className="heatmap-hour" key={hour}>{hour}</div>)}
-                    {DAY_ORDER.map((day) => (
-                        <div className="heatmap-row" key={day}>
-                            <div className="heatmap-day">{day.slice(0, 3)}</div>
-                            {HOURS.map((hour) => {
-                                const value = heatmapLookup.get(`${day}-${hour}`) || 0
-                                const intensity = maxHeatmapValue > 0 ? value / maxHeatmapValue : 0
-                                return (
-                                    <div
-                                        className="heatmap-cell"
-                                        key={`${day}-${hour}`}
-                                        title={`${day}, ${hour}:00 - ${value} plays`}
-                                        style={{ opacity: 0.18 + intensity * 0.82 }}
-                                    >
-                                        {value > 0 ? value : ''}
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    ))}
+                <div className="heatmap-scroll-container">
+                    <div className="listening-heatmap-grid">
+                        <div className="heatmap-corner" />
+                        {HOURS.map((hour) => <div className="heatmap-hour" key={hour}>{hour}</div>)}
+                        {DAY_ORDER.map((day) => (
+                            <div className="heatmap-row" key={day}>
+                                <div className="heatmap-day">{day.slice(0, 3)}</div>
+                                {HOURS.map((hour) => {
+                                    const value = heatmapLookup.get(`${day}-${hour}`) || 0
+                                    const intensity = maxHeatmapValue > 0 ? value / maxHeatmapValue : 0
+                                    return (
+                                        <div
+                                            className="heatmap-cell"
+                                            key={`${day}-${hour}`}
+                                            title={`${day}, ${hour}:00 - ${value} plays`}
+                                            style={{ opacity: 0.18 + intensity * 0.82 }}
+                                        >
+                                            {value > 0 ? value : ''}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         )

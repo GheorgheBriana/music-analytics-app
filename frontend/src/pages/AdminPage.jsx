@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '../api/adminApi';
+import { getFriendingEnabled, setFriendingEnabled } from '../api/friendsApi';
 import AnalyticsPipelinePage from './app/AnalyticsPipelinePage';
 import './AdminPage.css';
 
@@ -148,6 +149,10 @@ export default function AdminPage() {
                     className={activeTab === 'quality' ? 'active' : ''}>
                     System Health & Data Quality
                 </button>
+                <button onClick={() => setActiveTab('settings')}
+                    className={activeTab === 'settings' ? 'active' : ''}>
+                    Settings
+                </button>
             </div>
 
             {message && <div className="admin-message" style={{ background: 'rgba(29, 185, 84, 0.1)', border: '1px solid #1db954', color: '#1db954', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -191,6 +196,10 @@ export default function AdminPage() {
                         indexes={schemaIndexes}
                         partitions={schemaPartitions}
                     />
+                )}
+
+                {activeTab === 'settings' && (
+                    <AdminSettingsSection />
                 )}
             </div>
         </div>
@@ -852,6 +861,91 @@ function SchemaSection({ oltp, dw, mvs, indexes, partitions }) {
                     {filteredIndexes.length === 0 && (
                         <p style={{ color: '#888', fontStyle: 'italic', textAlign: 'center', margin: '20px 0' }}>No matching indexes found.</p>
                     )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function AdminSettingsSection() {
+    const [enabled, setEnabled] = useState(true);
+    const [loading, setLoading] = useState(true);
+    const [message, setMessage] = useState('');
+
+    useEffect(() => {
+        getFriendingEnabled()
+            .then(r => {
+                setEnabled(r.enabled);
+                setLoading(false);
+            })
+            .catch(() => {
+                setMessage('Failed to load friending setting');
+                setLoading(false);
+            });
+    }, []);
+
+    async function toggle() {
+        try {
+            setLoading(true);
+            const next = !enabled;
+            await setFriendingEnabled(next);
+            setEnabled(next);
+            setMessage(`Friend system has been ${next ? 'enabled' : 'disabled'}!`);
+        } catch (e) {
+            setMessage('Failed to update setting');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="admin-panel" style={{ color: '#fff' }}>
+            <h3>Global Settings</h3>
+            <p style={{ color: '#a3a3a3', fontSize: '13px', margin: '4px 0 20px 0' }}>
+                Configure and moderate core features of the music analytics platform.
+            </p>
+
+            {message && (
+                <div style={{ background: 'rgba(29, 185, 84, 0.1)', border: '1px solid #1db954', color: '#1db954', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{message}</span>
+                    <button onClick={() => setMessage('')} style={{ background: 'transparent', border: 'none', color: '#1db954', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+                </div>
+            )}
+
+            <div style={{
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px',
+                padding: '24px',
+                maxWidth: '600px',
+            }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#fff' }}>Friend & Comparison System</h4>
+                <p style={{ margin: '0 0 20px 0', color: '#a3a3a3', fontSize: '13px' }}>
+                    When disabled, users cannot search for other profiles, send friend requests, or compare music libraries. Existing friendships will remain saved but temporarily inactive.
+                </p>
+                
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                    <strong>Allow Friend Requests & Comparisons:</strong>
+                    <button 
+                        onClick={toggle}
+                        disabled={loading}
+                        style={{
+                            background: enabled ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                            border: `1px solid ${enabled ? '#22c55e' : '#ef4444'}`,
+                            color: enabled ? '#22c55e' : '#ef4444',
+                            padding: '8px 24px',
+                            borderRadius: '20px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '13px',
+                            letterSpacing: '0.5px',
+                            outline: 'none',
+                            transition: 'all 0.2s ease',
+                            boxShadow: `0 0 10px ${enabled ? '#22c55e' : '#ef4444'}20`
+                        }}
+                    >
+                        {loading ? 'PROCESSING...' : (enabled ? 'ENABLED' : 'DISABLED')}
+                    </button>
                 </div>
             </div>
         </div>

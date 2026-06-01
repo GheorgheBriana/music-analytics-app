@@ -15,6 +15,7 @@ function AnalyticsPage() {
     
     const [showWrapped, setShowWrapped] = useState(false)
     const [topGenre, setTopGenre] = useState('')
+    const [selectedYearArtists, setSelectedYearArtists] = useState(null)
 
     const activeUserId = localStorage.getItem('userId')
 
@@ -42,6 +43,16 @@ function AnalyticsPage() {
 
         loadAnalyticsStats()
     }, [activeUserId, fromDate, toDate])
+
+    useEffect(() => {
+        if (importedStats?.topArtistsByYear?.length > 0) {
+            const years = [...new Set(importedStats.topArtistsByYear.map(a => a.year))];
+            const maxYear = Math.max(...years);
+            setSelectedYearArtists(maxYear);
+        } else {
+            setSelectedYearArtists(null);
+        }
+    }, [importedStats])
 
     function handleApplyFilter() {
         setFromDate(tempFromDate)
@@ -178,23 +189,67 @@ function AnalyticsPage() {
             return renderEmptyMessage('No yearly artist statistics found yet.')
         }
 
-        return (
-            <div className="compact-ranking-list">
-                {artistsByYear.map((artist, index) => (
-                    <div
-                        className="compact-ranking-item"
-                        key={`${artist.year}-${artist.artistName}-${index}`}
-                    >
-                        <span>{index + 1}</span>
+        // Get unique years in descending order
+        const years = [...new Set(artistsByYear.map(a => a.year))].sort((a, b) => b - a)
+        
+        // Active year
+        const activeYear = selectedYearArtists || years[0]
 
-                        <div>
-                            <strong>{artist.year} · {artist.artistName}</strong>
-                            <p>
-                                {artist.playCount} plays · {formatMinutes(artist.totalMsPlayed)} min
-                            </p>
-                        </div>
+        // Filter and sort artists for that year
+        const filteredArtists = artistsByYear
+            .filter(artist => artist.year === activeYear)
+            .sort((a, b) => b.playCount - a.playCount) // secondary sort to be safe
+
+        return (
+            <div className="yearly-artists-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', background: 'rgba(255, 255, 255, 0.03)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <span style={{ fontSize: '13px', color: '#a3a3a3', fontWeight: 'bold' }}>📅 Select Year:</span>
+                    <div className="year-selector-chips" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {years.map(year => (
+                            <button
+                                key={year}
+                                onClick={() => setSelectedYearArtists(year)}
+                                className={activeYear === year ? 'tab-btn active' : 'tab-btn'}
+                                style={{ 
+                                    padding: '6px 14px', 
+                                    borderRadius: '20px', 
+                                    border: '1px solid ' + (activeYear === year ? '#1db954' : 'rgba(255, 255, 255, 0.1)'),
+                                    background: activeYear === year ? 'rgba(29, 185, 84, 0.15)' : 'transparent',
+                                    color: activeYear === year ? '#1db954' : '#fff',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    fontSize: '13px',
+                                    fontWeight: 'bold',
+                                    outline: 'none'
+                                }}
+                            >
+                                {year}
+                            </button>
+                        ))}
                     </div>
-                ))}
+                </div>
+
+                <div className="compact-ranking-list">
+                    {filteredArtists.length > 0 ? (
+                        filteredArtists.map((artist, index) => (
+                            <div
+                                className="compact-ranking-item"
+                                key={`${artist.year}-${artist.artistName}-${index}`}
+                            >
+                                <span>{index + 1}</span>
+
+                                <div>
+                                    <strong>{artist.artistName}</strong>
+                                    <p>
+                                        {artist.playCount} plays · {formatMinutes(artist.totalMsPlayed)} min
+                                    </p>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="empty-stats-message">No artists found for the selected year.</p>
+                    )}
+                </div>
             </div>
         )
     }

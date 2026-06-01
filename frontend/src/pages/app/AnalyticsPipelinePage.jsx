@@ -11,8 +11,8 @@ function AnalyticsPipelinePage() {
     const [mvRefreshResult, setMvRefreshResult] = useState('')
     const [error, setError] = useState('')
     
-    const [backfillLimit, setBackfillLimit] = useState(20000)
-    const [refreshLimit, setRefreshLimit] = useState(20000)
+    const [backfillLimit, setBackfillLimit] = useState(500000)
+    const [refreshLimit, setRefreshLimit] = useState(500000)
     const [enrichmentLimit, setEnrichmentLimit] = useState(50)
     const [enrichmentResult, setEnrichmentResult] = useState(null)
 

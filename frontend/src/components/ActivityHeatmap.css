@@ -81,10 +81,13 @@
 }
 
 .heatmap-month-label {
+    display: block;
     width: 13px;
+    flex-shrink: 0;
     color: #aeb3c5;
     font-size: 12px;
     line-height: 1;
+    white-space: nowrap;
 }
 
 .heatmap-body {

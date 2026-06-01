@@ -6,12 +6,25 @@ services:
     container_name: music-analytics-db
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: music_analytics
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  db_eu:
+    image: postgres:15-alpine
+    container_name: music-analytics-db-eu
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: music_analytics_eu
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_eu:/var/lib/postgresql/data
     restart: unless-stopped
 
   redis:
@@ -38,5 +51,6 @@ services:
 
 volumes:
   postgres_data:
+  postgres_data_eu:
   redis_data:
   rabbitmq_data:

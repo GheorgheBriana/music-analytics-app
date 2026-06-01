@@ -34,6 +34,14 @@ function AdminLayout() {
                     >
                         Admin Page
                     </NavLink>
+
+                    <NavLink
+                        to="/app/admin/mobd"
+                        className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
+                        style={({ isActive }) => isActive ? { backgroundColor: 'rgba(255, 68, 68, 0.1)', color: '#ff4444', borderColor: 'rgba(255, 68, 68, 0.5)' } : {}}
+                    >
+                        📐 MOBD Admin
+                    </NavLink>
                     
                     <a 
                         href="http://localhost:8080/swagger-ui.html" 

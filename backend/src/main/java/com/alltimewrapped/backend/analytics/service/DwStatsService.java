@@ -97,18 +97,32 @@ public class DwStatsService {
                      "JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key " +
                      (userId != null ? "JOIN dw.dw_dim_user u ON f.user_key = u.user_key WHERE u.original_user_id = ? AND " : "WHERE ") +
                      "f.completion_rate IS NOT NULL " +
-                     "GROUP BY a.artist_name HAVING COUNT(f.fact_id) >= 5 " +
+                     "GROUP BY a.artist_name HAVING COUNT(f.fact_id) >= 1 " +
                      "ORDER BY \"totalPlays\" DESC LIMIT 10";
         return jdbcTemplate.queryForList(sql, params(userId));
     }
 
     public List<Map<String, Object>> getPlatformStats(Long userId) {
-        String sql = "SELECT p.platform_name AS \"platformName\", COUNT(f.fact_id) AS \"totalPlays\", " +
-                     "ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS \"totalMinutes\" " +
+        String join = factUserJoin(userId);
+        String sql = "SELECT " +
+                     "  CASE " +
+                     "    WHEN LOWER(p.platform_name) LIKE '%windows%' THEN 'Windows' " +
+                     "    WHEN LOWER(p.platform_name) LIKE '%android%' THEN 'Android' " +
+                     "    WHEN LOWER(p.platform_name) LIKE '%ios%' OR LOWER(p.platform_name) LIKE '%iphone%' OR LOWER(p.platform_name) LIKE '%ipad%' THEN 'iOS' " +
+                     "    WHEN LOWER(p.platform_name) LIKE '%mac%' OR LOWER(p.platform_name) LIKE '%osx%' THEN 'macOS' " +
+                     "    WHEN LOWER(p.platform_name) LIKE '%linux%' THEN 'Linux' " +
+                     "    WHEN LOWER(p.platform_name) LIKE '%playstation%' OR LOWER(p.platform_name) LIKE '%ps4%' OR LOWER(p.platform_name) LIKE '%ps5%' OR LOWER(p.platform_name) LIKE '%scei%' THEN 'PlayStation' " +
+                     "    WHEN LOWER(p.platform_name) LIKE '%xbox%' THEN 'Xbox' " +
+                     "    WHEN LOWER(p.platform_name) LIKE '%web_player%' OR LOWER(p.platform_name) LIKE '%web player%' THEN 'Web Player' " +
+                     "    ELSE 'Other' " +
+                     "  END AS \"platformName\", " +
+                     "  COUNT(f.fact_id) AS \"totalPlays\", " +
+                     "  ROUND(COALESCE(SUM(f.minutes_played), 0)::numeric, 2) AS \"totalMinutes\" " +
                      "FROM dw.dw_fact_listening_event f " +
                      "JOIN dw.dw_dim_platform p ON f.platform_key = p.platform_key " +
-                     factUserJoin(userId) +
-                     "GROUP BY p.platform_name ORDER BY \"totalMinutes\" DESC";
+                     join +
+                     "GROUP BY 1 " +
+                     "ORDER BY \"totalMinutes\" DESC";
         return jdbcTemplate.queryForList(sql, params(userId));
     }
 

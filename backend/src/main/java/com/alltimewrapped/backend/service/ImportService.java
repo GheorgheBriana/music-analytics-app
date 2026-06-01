@@ -20,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.io.InputStream;
 import java.time.OffsetDateTime;
@@ -31,6 +32,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Types;
 
 @Slf4j
 @Service
@@ -40,6 +46,8 @@ public class ImportService {
     private final TrackService trackService;
     private final AppUserRepository appUserRepository;
     private final ListeningRecordRepository listeningRecordRepository;
+    private final JdbcTemplate jdbcTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -71,6 +79,23 @@ public class ImportService {
         int duplicateRecords = 0;
         int skippedRecords = 0;
 
+        Map<String, Track> trackCache = new HashMap<>();
+        Map<String, com.alltimewrapped.backend.model.Artist> artistCache = new HashMap<>();
+        Map<String, com.alltimewrapped.backend.model.Album> albumCache = new HashMap<>();
+
+        log.info("Pre-populating memory caches of tracks, artists, and albums...");
+        trackService.prepopulateCaches(trackCache, artistCache, albumCache);
+        entityManager.clear(); // Detach the ~59,000 entities from Hibernate L1 cache to disable dirty-checking scans
+        log.info("Pre-population complete. Cached {} tracks, {} artists, and {} albums.",
+                trackCache.size(), artistCache.size(), albumCache.size());
+
+        log.info("Pre-loading existing listening records to avoid duplicate checks...");
+        Set<String> existingKeys = buildExistingKeysSet(user.getId());
+        log.info("Pre-loaded {} existing duplicate keys for user.", existingKeys.size());
+
+        int totalFiles = countSpotifyAudioHistoryFiles(file);
+        int currentFileIndex = 0;
+
         try (InputStream inputStream = file.getInputStream();
              ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
 
@@ -83,6 +108,7 @@ public class ImportService {
                     log.info("Processing file: {}", fileName);
 
                     processedFiles++;
+                    currentFileIndex++;
 
                     List<SpotifyListeningDTO> records = objectMapper.readValue(
                             zipInputStream,
@@ -93,8 +119,8 @@ public class ImportService {
 
                     totalRecordsFound += records.size();
 
-                    // Process the records directly because the application currently runs without RabbitMQ.
-                    ImportResultResponse fileResult = processRecords(records, user);
+                    // Process the records directly using the shared caches and shared duplicate keys across all files
+                    ImportResultResponse fileResult = processRecords(records, user, trackCache, artistCache, albumCache, existingKeys, currentFileIndex, totalFiles);
 
                     importedRecords += fileResult.getImportedRecords();
                     duplicateRecords += fileResult.getDuplicateRecords();
@@ -114,6 +140,12 @@ public class ImportService {
                     "Error processing ZIP file"
             );
         }
+
+        // Send final completed status
+        messagingTemplate.convertAndSend(
+                "/topic/import-progress/" + userId,
+                "{\"progress\": 100, \"status\": \"COMPLETED\", \"message\": \"Import completed successfully!\"}"
+        );
 
         log.info(
                 "Import finished. Files processed: {}, total records found: {}, imported: {}, duplicates: {}, skipped: {}",
@@ -147,28 +179,92 @@ public class ImportService {
 
     // checks if the current file is a Spotify audio history JSON file
     private boolean isSpotifyAudioHistoryFile(String fileName) {
-        return fileName.contains("Streaming_History_Audio")
-                && fileName.endsWith(".json");
+        return (fileName.contains("Streaming_History_Audio") 
+                || fileName.contains("StreamingHistory_music") 
+                || fileName.contains("endsong"))
+                && fileName.endsWith(".json")
+                && !fileName.contains("__MACOSX")
+                && !fileName.contains("/._")
+                && !fileName.startsWith("._");
+    }
+
+    private int countSpotifyAudioHistoryFiles(MultipartFile file) {
+        int count = 0;
+        try (InputStream inputStream = file.getInputStream();
+             ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                if (isSpotifyAudioHistoryFile(entry.getName())) {
+                    count++;
+                }
+                zipInputStream.closeEntry();
+            }
+        } catch (Exception e) {
+            log.error("Error counting files in ZIP: {}", e.getMessage());
+        }
+        return count > 0 ? count : 1;
     }
 
     // processes Spotify records and saves valid new records in batches
     @Transactional
     public ImportResultResponse processRecords(List<SpotifyListeningDTO> records, AppUser user) {
-        int importedRecords = 0;
-        int duplicateRecords = 0;
-        int skippedRecords = 0;
-
-        // local caches avoid repeated DB lookups for the same track, artist or album
         Map<String, Track> trackCache = new HashMap<>();
         Map<String, com.alltimewrapped.backend.model.Artist> artistCache = new HashMap<>();
         Map<String, com.alltimewrapped.backend.model.Album> albumCache = new HashMap<>();
 
-        // pre-load existing records for this user, instead of checking duplicates one by one
+        trackService.prepopulateCaches(trackCache, artistCache, albumCache);
+        entityManager.clear(); // Detach pre-populated entities from Hibernate L1 cache to disable dirty-checking scans
         Set<String> existingKeys = buildExistingKeysSet(user.getId());
+
+        return processRecords(records, user, trackCache, artistCache, albumCache, existingKeys, 1, 1);
+    }
+
+    // Backward-compatible overloaded method
+    @Transactional
+    public ImportResultResponse processRecords(
+            List<SpotifyListeningDTO> records,
+            AppUser user,
+            Map<String, Track> trackCache,
+            Map<String, com.alltimewrapped.backend.model.Artist> artistCache,
+            Map<String, com.alltimewrapped.backend.model.Album> albumCache
+    ) {
+        Set<String> existingKeys = buildExistingKeysSet(user.getId());
+        return processRecords(records, user, trackCache, artistCache, albumCache, existingKeys, 1, 1);
+    }
+
+    // Backward-compatible overloaded method
+    @Transactional
+    public ImportResultResponse processRecords(
+            List<SpotifyListeningDTO> records,
+            AppUser user,
+            Map<String, Track> trackCache,
+            Map<String, com.alltimewrapped.backend.model.Artist> artistCache,
+            Map<String, com.alltimewrapped.backend.model.Album> albumCache,
+            Set<String> existingKeys
+    ) {
+        return processRecords(records, user, trackCache, artistCache, albumCache, existingKeys, 1, 1);
+    }
+
+    // Overloaded cache-sharing and duplicate-key-sharing version of processRecords for fast import
+    @Transactional
+    public ImportResultResponse processRecords(
+            List<SpotifyListeningDTO> records,
+            AppUser user,
+            Map<String, Track> trackCache,
+            Map<String, com.alltimewrapped.backend.model.Artist> artistCache,
+            Map<String, com.alltimewrapped.backend.model.Album> albumCache,
+            Set<String> existingKeys,
+            int fileIndex,
+            int totalFiles
+    ) {
+        int importedRecords = 0;
+        int duplicateRecords = 0;
+        int skippedRecords = 0;
 
         List<ListeningRecord> batch = new ArrayList<>();
 
-        for (SpotifyListeningDTO dto : records) {
+        for (int i = 0; i < records.size(); i++) {
+            SpotifyListeningDTO dto = records.get(i);
 
             // ignore records that cannot be used for music statistics
             if (shouldSkipRecord(dto)) {
@@ -176,20 +272,42 @@ public class ImportService {
                 continue;
             }
 
-            OffsetDateTime playedAt;
+            OffsetDateTime playedAt = null;
+            String rawTs = dto.getTs() != null ? dto.getTs() : dto.getEndTime();
+            if (rawTs == null) {
+                skippedRecords++;
+                continue;
+            }
 
             try {
-                playedAt = OffsetDateTime.parse(dto.getTs());
+                if (rawTs.contains("T") || rawTs.contains("Z")) {
+                    playedAt = OffsetDateTime.parse(rawTs);
+                } else {
+                    // standard format: "2024-05-19 12:45"
+                    java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+                    java.time.LocalDateTime localDateTime = java.time.LocalDateTime.parse(rawTs.trim(), formatter);
+                    playedAt = localDateTime.atOffset(java.time.ZoneOffset.UTC);
+                }
             } catch (Exception exception) {
                 skippedRecords++;
                 continue;
             }
 
+            String tName = dto.getMaster_metadata_track_name() != null ? dto.getMaster_metadata_track_name() : dto.getTrackName();
+            String aName = dto.getMaster_metadata_album_artist_name() != null ? dto.getMaster_metadata_album_artist_name() : dto.getArtistName();
+            String albName = dto.getMaster_metadata_album_album_name() != null ? dto.getMaster_metadata_album_album_name() : aName + " - Album";
+            
+            // Generate deterministic surrogate URI for standard format to leverage cache/duplicate index checks
+            String trackUri = dto.getSpotify_track_uri();
+            if (trackUri == null) {
+                trackUri = "surrogate:" + java.util.UUID.nameUUIDFromBytes((aName.trim().toLowerCase() + ":" + tName.trim().toLowerCase()).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+            }
+
             Track track = trackService.findOrCreateTrack(
-                    dto.getSpotify_track_uri(),
-                    dto.getMaster_metadata_track_name(),
-                    dto.getMaster_metadata_album_artist_name(),
-                    dto.getMaster_metadata_album_album_name(),
+                    trackUri,
+                    tName,
+                    aName,
+                    albName,
                     trackCache,
                     artistCache,
                     albumCache
@@ -211,6 +329,24 @@ public class ImportService {
 
             if (batch.size() >= BATCH_SIZE) {
                 saveBatch(batch);
+                entityManager.flush();
+                entityManager.clear();
+            }
+
+            // Send real-time progress updates every 250 records
+            if (i % 250 == 0 || i == records.size() - 1) {
+                double fileProgress = (double) (i + 1) / records.size();
+                double globalProgress = ((fileIndex - 1) + fileProgress) / totalFiles;
+                int progressPercent = (int) (globalProgress * 100);
+
+                if (progressPercent >= 100 && fileIndex < totalFiles) {
+                    progressPercent = 99;
+                }
+
+                messagingTemplate.convertAndSend(
+                        "/topic/import-progress/" + user.getId(),
+                        "{\"progress\": " + progressPercent + ", \"message\": \"Procesare fișier " + fileIndex + "/" + totalFiles + "...\"}"
+                );
             }
         }
 
@@ -229,22 +365,57 @@ public class ImportService {
 
     // skips records that are not useful for music statistics
     private boolean shouldSkipRecord(SpotifyListeningDTO dto) {
-        return dto.getSpotify_track_uri() == null
-                || dto.getMs_played() == null
-                || dto.getMs_played() == 0;
+        String tName = dto.getMaster_metadata_track_name() != null ? dto.getMaster_metadata_track_name() : dto.getTrackName();
+        String aName = dto.getMaster_metadata_album_artist_name() != null ? dto.getMaster_metadata_album_artist_name() : dto.getArtistName();
+        Long ms = dto.getMs_played() != null ? dto.getMs_played() : dto.getMsPlayed();
+
+        return (tName == null || tName.isBlank() || aName == null || aName.isBlank())
+                || ms == null
+                || ms == 0;
     }
 
-    // saves the current batch and prepares it for the next records
+    // saves the current batch of ListeningRecord entities using high-performance JdbcTemplate batch updates,
+    // bypassing Hibernate's identity batch insert limitation.
     private void saveBatch(List<ListeningRecord> batch) {
-        listeningRecordRepository.saveAll(batch);
+        String sql = """
+            INSERT INTO oltp.listening_records 
+            (user_id, track_id, played_at, ms_played, source, skipped, platform, country_code)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """;
 
-        // force Hibernate to send the current batch to the database
-        entityManager.flush();
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                ListeningRecord r = batch.get(i);
+                ps.setLong(1, r.getUser().getId());
+                ps.setLong(2, r.getTrack().getId());
+                ps.setObject(3, r.getPlayedAt());
 
-        // clear the persistence context so the import does not become slower over time
-        entityManager.clear();
+                if (r.getMsPlayed() != null) {
+                    ps.setLong(4, r.getMsPlayed());
+                } else {
+                    ps.setNull(4, Types.BIGINT);
+                }
 
-        log.debug("Saved batch of {} records", batch.size());
+                ps.setString(5, r.getSource() != null ? r.getSource().name() : null);
+
+                if (r.getSkipped() != null) {
+                    ps.setBoolean(6, r.getSkipped());
+                } else {
+                    ps.setNull(6, Types.BOOLEAN);
+                }
+
+                ps.setString(7, r.getPlatform());
+                ps.setString(8, r.getCountryCode());
+            }
+
+            @Override
+            public int getBatchSize() {
+                return batch.size();
+            }
+        });
+
+        log.debug("Bulk inserted batch of {} records via JDBC", batch.size());
         batch.clear();
     }
 
@@ -260,11 +431,11 @@ public class ImportService {
         record.setUser(user);
         record.setTrack(track);
         record.setPlayedAt(playedAt);
-        record.setMsPlayed(dto.getMs_played());
+        record.setMsPlayed(dto.getMs_played() != null ? dto.getMs_played() : dto.getMsPlayed());
         record.setSource(ListeningSource.SPOTIFY);
         record.setSkipped(dto.getSkipped());
-        record.setPlatform(dto.getPlatform());
-        record.setCountryCode(dto.getConn_country());
+        record.setPlatform(dto.getPlatform() != null ? dto.getPlatform() : "Spotify (Imported)");
+        record.setCountryCode(dto.getConn_country() != null ? dto.getConn_country() : "ZZ");
 
         return record;
     }

@@ -15,6 +15,9 @@ import SpotifyLivePage from './pages/app/SpotifyLivePage'
 import ProfileImportPage from './pages/app/ProfileImportPage'
 import PredictionsPage from './pages/app/PredictionsPage'
 import SocialPage from './pages/app/SocialPage'
+import MOBDPage from './pages/app/MOBDPage'
+import StatsPage from './pages/app/StatsPage'
+import FriendsPage from './pages/app/FriendsPage'
 
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminPage from './pages/AdminPage'
@@ -120,12 +123,14 @@ function App() {
                     >
                         <Route path="dashboard" element={<DashboardPage />} />
                         <Route path="analytics" element={<AnalyticsPage />} />
+                        <Route path="stats" element={<StatsPage />} />
                         <Route path="bi-dashboard" element={<BIDashboardPage />} />
                         <Route path="calendar" element={<CalendarPage />} />
                         <Route path="dna" element={<MusicDnaPage />} />
                         <Route path="spotify-live" element={<SpotifyLivePage />} />
                         <Route path="predictions" element={<PredictionsPage />} />
                         <Route path="social" element={<SocialPage />} />
+                        <Route path="friends" element={<FriendsPage />} />
                         <Route path="profile" element={<ProfileImportPage />} />
                     </Route>
 
@@ -139,6 +144,7 @@ function App() {
                         }
                     >
                         <Route index element={<AdminPage />} />
+                        <Route path="mobd" element={<MOBDPage />} />
                     </Route>
 
                     {/* Catch-all */}

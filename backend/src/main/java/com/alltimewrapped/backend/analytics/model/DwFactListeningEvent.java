@@ -25,39 +25,39 @@ public class DwFactListeningEvent {
     @Column(name = "original_listening_record_id", nullable = false)
     private Long originalListeningRecordId;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "user_key", nullable = false)
     private DwDimUser user;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "track_key", nullable = false)
     private DwDimTrack track;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "artist_key", nullable = false)
     private DwDimArtist artist;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "album_key", nullable = false)
     private DwDimAlbum album;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "genre_key", nullable = false)
     private DwDimGenre genre;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "date_key", nullable = false)
     private DwDimDate date;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "time_key", nullable = false)
     private DwDimTime time;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "platform_key", nullable = false)
     private DwDimPlatform platform;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "source_key", nullable = false)
     private DwDimSource source;
 

@@ -6,6 +6,7 @@ import './SpotifyStatsPage.css'
 function SpotifyStatsPage({ userId, onBackClick }) {
     const [selectedFile, setSelectedFile] = useState(null)
     const [uploadStatus, setUploadStatus] = useState('')
+    const [isUploading, setIsUploading] = useState(false)
 
     const [topTracks, setTopTracks] = useState([])
     const [topArtists, setTopArtists] = useState([])
@@ -21,6 +22,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
 
     const [dailyActivity, setDailyActivity] = useState([])
     const [selectedHeatmapYear, setSelectedHeatmapYear] = useState(null)
+    const [selectedYearArtists, setSelectedYearArtists] = useState(null)
 
     const [fromDate, setFromDate] = useState('')
     const [toDate, setToDate] = useState('')
@@ -193,6 +195,16 @@ function SpotifyStatsPage({ userId, onBackClick }) {
         fetchImportedStats()
     }, [activeUserId, timeRange, isSpotifyMode])
 
+    useEffect(() => {
+        if (importedStats?.topArtistsByYear?.length > 0) {
+            const years = [...new Set(importedStats.topArtistsByYear.map(a => a.year))];
+            const maxYear = Math.max(...years);
+            setSelectedYearArtists(maxYear);
+        } else {
+            setSelectedYearArtists(null);
+        }
+    }, [importedStats])
+
     const handleFileChange = (event) => {
         const file = event.target.files[0]
         setSelectedFile(file)
@@ -214,6 +226,7 @@ function SpotifyStatsPage({ userId, onBackClick }) {
         formData.append('file', selectedFile)
 
         try {
+            setIsUploading(true)
             setUploadStatus('Importing your Spotify history...')
 
             const response = await fetch(
@@ -241,6 +254,8 @@ function SpotifyStatsPage({ userId, onBackClick }) {
             await loadDailyActivityForYear(latestYear)
         } catch (error) {
             setUploadStatus('Something went wrong while importing the ZIP file.')
+        } finally {
+            setIsUploading(false)
         }
     }
 
@@ -694,20 +709,67 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                             {activeAllTimeSection === 'evolution' && (
                                 <div className="accordion-content">
                                     {importedStats.topArtistsByYear?.length > 0 ? (
-                                        <div className="compact-ranking-list">
-                                            {importedStats.topArtistsByYear.slice(0, 10).map((artist, index) => (
-                                                <div className="compact-ranking-item" key={`${artist.year}-${artist.artistName}-${index}`}>
-                                                    <span>{artist.year}</span>
+                                        (() => {
+                                            const artistsByYear = importedStats.topArtistsByYear
+                                            const years = [...new Set(artistsByYear.map(a => a.year))].sort((a, b) => b - a)
+                                            const activeYear = selectedYearArtists || years[0]
+                                            const filteredArtists = artistsByYear
+                                                .filter(artist => artist.year === activeYear)
+                                                .sort((a, b) => b.playCount - a.playCount)
 
-                                                    <div>
-                                                        <strong>{artist.artistName}</strong>
-                                                        <p>
-                                                            {artist.playCount} plays · {formatMinutes(artist.totalMsPlayed)} min
-                                                        </p>
+                                            return (
+                                                <div className="yearly-artists-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', background: 'rgba(255, 255, 255, 0.03)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                                        <span style={{ fontSize: '13px', color: '#a3a3a3', fontWeight: 'bold' }}>📅 Select Year:</span>
+                                                        <div className="year-selector-chips" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                            {years.map(year => (
+                                                                <button
+                                                                    key={year}
+                                                                    onClick={() => setSelectedYearArtists(year)}
+                                                                    className={activeYear === year ? 'tab-btn active' : 'tab-btn'}
+                                                                    style={{ 
+                                                                        padding: '6px 14px', 
+                                                                        borderRadius: '20px', 
+                                                                        border: '1px solid ' + (activeYear === year ? '#1db954' : 'rgba(255, 255, 255, 0.1)'),
+                                                                        background: activeYear === year ? 'rgba(29, 185, 84, 0.15)' : 'transparent',
+                                                                        color: activeYear === year ? '#1db954' : '#fff',
+                                                                        cursor: 'pointer',
+                                                                        transition: 'all 0.2s ease',
+                                                                        fontSize: '13px',
+                                                                        fontWeight: 'bold',
+                                                                        outline: 'none'
+                                                                    }}
+                                                                >
+                                                                    {year}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="compact-ranking-list">
+                                                        {filteredArtists.length > 0 ? (
+                                                            filteredArtists.map((artist, index) => (
+                                                                <div
+                                                                    className="compact-ranking-item"
+                                                                    key={`${artist.year}-${artist.artistName}-${index}`}
+                                                                >
+                                                                    <span>{index + 1}</span>
+
+                                                                    <div>
+                                                                        <strong>{artist.artistName}</strong>
+                                                                        <p>
+                                                                            {artist.playCount} plays · {formatMinutes(artist.totalMsPlayed)} min
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <p className="empty-stats-message">No artists found for the selected year.</p>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
+                                            )
+                                        })()
                                     ) : (
                                         <p className="empty-stats-message">No artist evolution data for this period.</p>
                                     )}
@@ -856,8 +918,12 @@ function SpotifyStatsPage({ userId, onBackClick }) {
                             onChange={handleFileChange}
                         />
 
-                        <button className="upload-btn" onClick={handleUpload}>
-                            Upload Spotify ZIP
+                        <button 
+                            className="upload-btn" 
+                            onClick={handleUpload}
+                            disabled={isUploading}
+                        >
+                            {isUploading ? 'Importing...' : 'Upload Spotify ZIP'}
                         </button>
 
                         {uploadStatus && (
