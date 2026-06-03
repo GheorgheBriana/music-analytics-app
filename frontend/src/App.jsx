@@ -11,6 +11,7 @@ import AnalyticsPage from './pages/app/AnalyticsPage'
 import BIDashboardPage from './pages/app/BIDashboardPage'
 import CalendarPage from './pages/app/CalendarPage'
 import MusicDnaPage from './pages/app/MusicDnaPage'
+import TasteEvolutionPage from './pages/app/TasteEvolutionPage'
 import SpotifyLivePage from './pages/app/SpotifyLivePage'
 import ProfileImportPage from './pages/app/ProfileImportPage'
 import PredictionsPage from './pages/app/PredictionsPage'
@@ -127,6 +128,7 @@ function App() {
                         <Route path="bi-dashboard" element={<BIDashboardPage />} />
                         <Route path="calendar" element={<CalendarPage />} />
                         <Route path="dna" element={<MusicDnaPage />} />
+                        <Route path="evolution" element={<TasteEvolutionPage />} />
                         <Route path="spotify-live" element={<SpotifyLivePage />} />
                         <Route path="predictions" element={<PredictionsPage />} />
                         <Route path="social" element={<SocialPage />} />

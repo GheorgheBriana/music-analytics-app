@@ -138,6 +138,36 @@ public class OltpBackfillService {
                 """);
         log.info("[OLTP BACKFILL] Bulk linked {} tracks to unknown genre", linkedGenres);
 
+        // 7. Resolve track genres from other tracks of the same artist if they have only 'unknown'
+        int resolvedGenresCount = jdbcTemplate.update("""
+                INSERT INTO oltp.track_genres (track_id, genre_id)
+                SELECT DISTINCT t_target.id, tg_source.genre_id
+                FROM oltp.tracks t_target
+                JOIN %s ta_target ON t_target.id = ta_target.track_id
+                JOIN %s ta_source ON ta_target.artist_id = ta_source.artist_id
+                JOIN oltp.track_genres tg_source ON ta_source.track_id = tg_source.track_id
+                WHERE tg_source.genre_id != 1
+                  AND NOT EXISTS (
+                      SELECT 1 
+                      FROM oltp.track_genres tg_target 
+                      WHERE tg_target.track_id = t_target.id AND tg_target.genre_id != 1
+                  )
+                ON CONFLICT DO NOTHING
+                """.formatted(trackArtistsTable, trackArtistsTable));
+        log.info("[OLTP BACKFILL] Propagated {} genres to tracks from already-enriched artists", resolvedGenresCount);
+
+        // 8. Delete 'unknown' (genre_id = 1) mapping for any tracks that have at least one real genre
+        int cleanedUnknownCount = jdbcTemplate.update("""
+                DELETE FROM oltp.track_genres tg
+                WHERE tg.genre_id = 1
+                  AND EXISTS (
+                      SELECT 1 
+                      FROM oltp.track_genres tg2 
+                      WHERE tg2.track_id = tg.track_id AND tg2.genre_id != 1
+                  )
+                """);
+        log.info("[OLTP BACKFILL] Removed 'unknown' genre from {} tracks that have real genres", cleanedUnknownCount);
+
         long remainingAfter = trackRepository.countTracksNeedingBackfill();
         long durationMs = System.currentTimeMillis() - startedAt;
 

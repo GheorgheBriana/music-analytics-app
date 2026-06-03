@@ -216,25 +216,26 @@ public class SocialService {
 
         // 5. Collaborative Filtering Recommendations: Tracks User 2 (Friend) has listened to that User 1 (Me) hasn't
         String recommendationsSql = """
+                WITH user1_tracks AS (
+                    SELECT DISTINCT t2.track_name
+                    FROM dw.dw_fact_listening_event f2
+                    JOIN dw.dw_dim_track t2 ON f2.track_key = t2.track_key
+                    JOIN dw.dw_dim_user u2 ON f2.user_key = u2.user_key
+                    WHERE u2.original_user_id = ?
+                )
                 SELECT t.track_name, a.artist_name, COUNT(*) AS plays
                 FROM dw.dw_fact_listening_event f
                 JOIN dw.dw_dim_track t ON f.track_key = t.track_key
                 JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
                 JOIN dw.dw_dim_user u ON f.user_key = u.user_key
                 WHERE u.original_user_id = ?
-                  AND t.track_name NOT IN (
-                      SELECT t2.track_name
-                      FROM dw.dw_fact_listening_event f2
-                      JOIN dw.dw_dim_track t2 ON f2.track_key = t2.track_key
-                      JOIN dw.dw_dim_user u2 ON f2.user_key = u2.user_key
-                      WHERE u2.original_user_id = ?
-                  )
+                  AND t.track_name NOT IN (SELECT track_name FROM user1_tracks)
                 GROUP BY t.track_name, a.artist_name
                 ORDER BY plays DESC
                 LIMIT 5
                 """;
 
-        List<Map<String, Object>> recRows = jdbcTemplate.queryForList(recommendationsSql, userId2, userId1);
+        List<Map<String, Object>> recRows = jdbcTemplate.queryForList(recommendationsSql, userId1, userId2);
         List<String> recommendations = new ArrayList<>();
         for (Map<String, Object> row : recRows) {
             recommendations.add(row.get("track_name") + " - " + row.get("artist_name"));

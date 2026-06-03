@@ -23,6 +23,9 @@ ON dw.dw_dim_user(original_user_id);
 CREATE INDEX IF NOT EXISTS idx_dw_dim_track_original_id
 ON dw.dw_dim_track(original_track_id);
 
+CREATE INDEX IF NOT EXISTS idx_dw_dim_track_name
+ON dw.dw_dim_track(track_name);
+
 CREATE INDEX IF NOT EXISTS idx_dw_dim_artist_original_id
 ON dw.dw_dim_artist(original_artist_id);
 

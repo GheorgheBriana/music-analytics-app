@@ -92,16 +92,18 @@ public class MusicBrainzEnrichmentService {
     }
 
     private void enrichSingleArtist(Artist artist) throws Exception {
-        String url = UriComponentsBuilder.fromUriString("https://musicbrainz.org/ws/2/artist")
-                .queryParam("query", artist.getArtistName())
+        String queryStr = "artist:\"" + artist.getArtistName().replace("\"", "\\\"") + "\"";
+        java.net.URI uri = UriComponentsBuilder.fromUriString("https://musicbrainz.org/ws/2/artist")
+                .queryParam("query", queryStr)
                 .queryParam("fmt", "json")
-                .toUriString();
+                .build()
+                .toUri();
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("User-Agent", "MusicAnalyticsApp/1.0 ( dw@example.com )");
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+        ResponseEntity<String> response = restTemplate.exchange(uri, HttpMethod.GET, entity, String.class);
 
         if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
             markAsEnriched(artist, null, "musicbrainz_error");
@@ -132,7 +134,8 @@ public class MusicBrainzEnrichmentService {
             String name = tagNode.path("name").asText("").trim().toLowerCase();
             int count = tagNode.path("count").asInt(0);
 
-            if (count > 0 && !name.isBlank() && !IGNORED_TAGS.contains(name) && name.length() > 2) {
+            if (count > 0 && !name.isBlank() && !IGNORED_TAGS.contains(name) && name.length() > 2
+                    && !name.equalsIgnoreCase(artist.getArtistName())) {
                 validTags.add(new TagRecord(name, count));
             }
         }

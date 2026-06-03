@@ -41,6 +41,7 @@ public class DatabaseIndexInitializer implements ApplicationListener<Application
             // 4. Other missing DW dimension indexes
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_dw_dim_user_original_id ON dw.dw_dim_user (original_user_id)");
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_dw_dim_track_original_id ON dw.dw_dim_track (original_track_id)");
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_dw_dim_track_name ON dw.dw_dim_track (track_name)");
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_dw_dim_artist_original_id ON dw.dw_dim_artist (original_artist_id)");
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_dw_dim_album_original_id ON dw.dw_dim_album (original_album_id)");
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_dw_dim_genre_original_id ON dw.dw_dim_genre (original_genre_id)");

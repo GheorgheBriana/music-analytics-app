@@ -139,6 +139,13 @@ function UserLayout() {
                     </NavLink>
 
                     <NavLink
+                        to="/app/evolution"
+                        className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
+                    >
+                        Evolution
+                    </NavLink>
+
+                    <NavLink
                         to="/app/predictions"
                         className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
                     >

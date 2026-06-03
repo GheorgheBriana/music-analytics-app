@@ -16,3 +16,5 @@ CREATE INDEX IF NOT EXISTS idx_dw_dim_source_lower ON dw.dw_dim_source (LOWER(so
 
 -- DW Performance Indexes for ETL incremental checks
 CREATE INDEX IF NOT EXISTS idx_dw_fact_original_record ON dw.dw_fact_listening_event (original_listening_record_id);
+CREATE INDEX IF NOT EXISTS idx_dw_dim_track_name ON dw.dw_dim_track (track_name);
+CREATE INDEX IF NOT EXISTS idx_dw_dim_user_original ON dw.dw_dim_user (original_user_id);
