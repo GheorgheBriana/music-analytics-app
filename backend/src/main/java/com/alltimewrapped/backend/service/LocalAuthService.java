@@ -7,6 +7,7 @@ import com.alltimewrapped.backend.model.AppUser;
 import com.alltimewrapped.backend.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -17,9 +18,10 @@ public class LocalAuthService {
 
     private final AppUserRepository appUserRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     // Creates a local user account using username, email and password.
-    public LocalAuthResponse register(LocalRegisterRequest request) {
+    public LocalAuthResponse register(LocalRegisterRequest request, String ip) {
         validateRegisterRequest(request);
 
         if (appUserRepository.existsByUsername(request.getUsername())) {
@@ -43,6 +45,8 @@ public class LocalAuthService {
 
         AppUser savedUser = appUserRepository.save(user);
 
+        updateLastLogin(savedUser.getId(), ip);
+
         return new LocalAuthResponse(
                 savedUser.getId(),
                 savedUser.getUsername(),
@@ -52,7 +56,7 @@ public class LocalAuthService {
     }
 
     // Logs in a local user by checking the raw password against the saved hash.
-    public LocalAuthResponse login(LocalLoginRequest request) {
+    public LocalAuthResponse login(LocalLoginRequest request, String ip) {
         validateLoginRequest(request);
 
         AppUser user = appUserRepository.findByUsername(request.getUsername())
@@ -69,12 +73,24 @@ public class LocalAuthService {
             );
         }
 
+        updateLastLogin(user.getId(), ip);
+
         return new LocalAuthResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 "manual"
         );
+    }
+
+    private void updateLastLogin(Long userId, String ip) {
+        jdbcTemplate.update("""
+            INSERT INTO oltp.user_profile_sec (user_id, last_login_ip, last_login_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id) DO UPDATE
+            SET last_login_ip = EXCLUDED.last_login_ip,
+                last_login_at = EXCLUDED.last_login_at
+            """, userId, ip);
     }
 
     // Keeps register validation in one place.

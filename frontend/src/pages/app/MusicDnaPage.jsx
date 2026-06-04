@@ -129,7 +129,7 @@ function MusicDnaPage() {
         return (
             <div className="all-time-section">
                 <h2>Music DNA</h2>
-                <p className="empty-stats-message">Se încarcă profilul tău muzical...</p>
+                <p className="empty-stats-message">Loading your music profile...</p>
             </div>
         );
     }
@@ -139,16 +139,16 @@ function MusicDnaPage() {
             <div className="all-time-header">
                 <div>
                     <h2>Music DNA & Discovery Engine</h2>
-                    <p>Explorează-ți genurile dominante în format Treemap și descoperă recomandări inteligente pe baza profilului tău social și a evoluției gusturilor.</p>
+                    <p>Explore your dominant genres in a Treemap format and discover smart recommendations based on your social profile and taste evolution.</p>
                 </div>
             </div>
 
             <div className="all-time-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
                 {/* GENRE TREEMAP */}
                 <div className="all-time-panel" style={{ minHeight: '440px' }}>
-                    <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Distribuția Genurilor (Treemap)</h3>
+                    <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Genre Distribution (Treemap)</h3>
                     <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#a8a8b8' }}>
-                        Reprezentarea vizuală a volumului total de audiții categorisite pe genuri din depozitul tău de date.
+                        Visual representation of the total play counts categorized by genres from your data warehouse.
                     </p>
                     {genres && genres.length > 0 ? (
                         <ResponsiveContainer width="100%" height={320}>
@@ -160,12 +160,12 @@ function MusicDnaPage() {
                             >
                                 <Tooltip 
                                     contentStyle={{ backgroundColor: '#181824', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff' }}
-                                    formatter={(value, name) => [`${value} piese ascultate`, name]}
+                                    formatter={(value, name) => [`${value} tracks listened`, name]}
                                 />
                             </Treemap>
                         </ResponsiveContainer>
                     ) : (
-                        <p className="empty-stats-message">Nu există date suficiente pentru generarea structurii DNA.</p>
+                        <p className="empty-stats-message">Not enough data to generate your music DNA structure.</p>
                     )}
                 </div>
 
@@ -173,7 +173,7 @@ function MusicDnaPage() {
                 <div className="all-time-panel" style={{ display: 'flex', flexDirection: 'column' }}>
                     <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Music Discovery Engine</h3>
                     <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#a8a8b8' }}>
-                        Recomandări hibride bazate pe similarități între utilizatori (Collaborative Filtering) cu fallback pe genurile tale în creștere (Content-based din Evolution).
+                        Hybrid recommendations based on user similarity (Collaborative Filtering) with a fallback to your rising genres (Content-based from Evolution).
                     </p>
 
                     {/* Level Selector Slider/Tabs */}
@@ -186,9 +186,9 @@ function MusicDnaPage() {
                         marginBottom: '24px'
                     }}>
                         {[
-                            { id: 'comfort', label: 'Confort' },
-                            { id: 'balance', label: 'Echilibru' },
-                            { id: 'adventure', label: 'Aventură' }
+                            { id: 'comfort', label: 'Comfort' },
+                            { id: 'balance', label: 'Balance' },
+                            { id: 'adventure', label: 'Adventure' }
                         ].map((level) => (
                             <button
                                 key={level.id}
@@ -235,7 +235,7 @@ function MusicDnaPage() {
                     {/* Recommendations list */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {loadingRecs ? (
-                            <p className="empty-stats-message" style={{ margin: 'auto 0' }}>Se generează recomandările potrivite...</p>
+                            <p className="empty-stats-message" style={{ margin: 'auto 0' }}>Generating matching recommendations...</p>
                         ) : recommendations.length > 0 ? (
                             recommendations.map((rec, index) => (
                                 <div 
@@ -294,7 +294,7 @@ function MusicDnaPage() {
                                                 }
                                             }}
                                         >
-                                            De ce? {expandedIdx === index ? '▲' : '▼'}
+                                            Why? {expandedIdx === index ? '▲' : '▼'}
                                         </button>
                                     </div>
 
@@ -322,7 +322,7 @@ function MusicDnaPage() {
                                 </div>
                             ))
                         ) : (
-                            <p className="empty-stats-message" style={{ margin: 'auto 0' }}>Nu am putut genera recomandări. Importă mai multe audiții pentru a extinde datele locale.</p>
+                            <p className="empty-stats-message" style={{ margin: 'auto 0' }}>Could not generate recommendations. Import more listening history to expand local data.</p>
                         )}
                     </div>
                 </div>

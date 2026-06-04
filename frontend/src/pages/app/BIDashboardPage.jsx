@@ -19,7 +19,6 @@ import {
     getAdvancedOverview,
     getArtistLoyalty,
     getCompletionRate,
-    getListeningHeatmap,
     getListeningPersonality,
     getMonthlyGrowth,
     getMonthlyListening,
@@ -60,15 +59,15 @@ function BIDashboardPage() {
                 setError('')
 
                 const [
-                    monthlyListening, topGenres, weekendVsWeekday, heatmap, monthlyGrowth, artistLoyalty, musicInsights,
+                    monthlyListening, topGenres, weekendVsWeekday, monthlyGrowth, artistLoyalty, musicInsights,
                     advancedOverview, partOfDayStats, platforms, completionRate, peakListeningTime, listeningPersonality, artistRankingEvolution
                 ] = await Promise.all([
-                    getMonthlyListening(), getTopGenres(), getWeekendVsWeekdayStats(), getListeningHeatmap(), getMonthlyGrowth(), getArtistLoyalty(), getMusicInsights(),
+                    getMonthlyListening(), getTopGenres(), getWeekendVsWeekdayStats(), getMonthlyGrowth(), getArtistLoyalty(), getMusicInsights(),
                     getWarehouseSummary(), getPartOfDayStats(), getPlatforms(), getCompletionRate(), getPeakListeningTime(), getListeningPersonality(), getArtistRankingEvolution()
                 ])
 
                 setReports({
-                    monthlyListening, topGenres, weekendVsWeekday, heatmap, monthlyGrowth, artistLoyalty, musicInsights,
+                    monthlyListening, topGenres, weekendVsWeekday, monthlyGrowth, artistLoyalty, musicInsights,
                     advancedOverview, partOfDayStats, platforms, completionRate, peakListeningTime, listeningPersonality, artistRankingEvolution
                 })
             } catch (error) {
@@ -81,20 +80,7 @@ function BIDashboardPage() {
         loadReports()
     }, [])
 
-    const heatmapLookup = useMemo(() => {
-        const lookup = new Map()
-        const rows = reports?.heatmap || []
-        rows.forEach((row) => {
-            const key = `${row.dayName}-${row.hour}`
-            lookup.set(key, Number(row.totalPlays) || 0)
-        })
-        return lookup
-    }, [reports])
 
-    const maxHeatmapValue = useMemo(() => {
-        const values = Array.from(heatmapLookup.values())
-        return values.length > 0 ? Math.max(...values) : 0
-    }, [heatmapLookup])
 
     function formatNumber(value, decimals = 0) {
         return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
@@ -447,41 +433,7 @@ function BIDashboardPage() {
         )
     }
 
-    function renderHeatmap() {
-        if (!reports?.heatmap || reports.heatmap.length === 0) return <div className="chart-box">{renderEmpty('No heatmap data.')}</div>
 
-        return (
-            <div className="chart-box" style={{ gridColumn: '1 / -1' }}>
-                <h3>Listening heatmap</h3>
-                <p className="chart-description">Darker cells show hours with higher listening activity.</p>
-                <div className="heatmap-scroll-container">
-                    <div className="listening-heatmap-grid">
-                        <div className="heatmap-corner" />
-                        {HOURS.map((hour) => <div className="heatmap-hour" key={hour}>{hour}</div>)}
-                        {DAY_ORDER.map((day) => (
-                            <div className="heatmap-row" key={day}>
-                                <div className="heatmap-day">{day.slice(0, 3)}</div>
-                                {HOURS.map((hour) => {
-                                    const value = heatmapLookup.get(`${day}-${hour}`) || 0
-                                    const intensity = maxHeatmapValue > 0 ? value / maxHeatmapValue : 0
-                                    return (
-                                        <div
-                                            className="heatmap-cell"
-                                            key={`${day}-${hour}`}
-                                            title={`${day}, ${hour}:00 - ${value} plays`}
-                                            style={{ opacity: 0.18 + intensity * 0.82 }}
-                                        >
-                                            {value > 0 ? value : ''}
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        )
-    }
 
     function renderCompletionRateChart() {
         const data = reports?.completionRate || []
@@ -613,7 +565,7 @@ function BIDashboardPage() {
                 {renderTopGenresChart()}
                 {renderMonthlyGrowthChart()}
 
-                {renderHeatmap()}
+
 
                 {renderCompletionRateChart()}
                 {renderHighlights()}

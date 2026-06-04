@@ -355,9 +355,9 @@ public class TasteEvolutionService {
                 .max(Comparator.comparingInt(e -> e.getValue().size()))
                 .ifPresent(e -> cards.add(new StoryCard(
                         "MOST_DIVERSE_YEAR",
-                        "Anul tău cel mai divers",
+                        "Most Diverse Year",
                         String.valueOf(e.getKey()),
-                        "Ai ascultat " + e.getValue().size() + " genuri diferite în " + e.getKey() + "."
+                        "You listened to " + e.getValue().size() + " different genres in " + e.getKey() + "."
                 )));
 
         // 2. Most loyal year
@@ -373,9 +373,9 @@ public class TasteEvolutionService {
                 .max(Comparator.comparingDouble(o -> (double) o[2]))
                 .ifPresent(o -> cards.add(new StoryCard(
                         "MOST_LOYAL_YEAR",
-                        "Cel mai fidel an",
+                        "Most Loyal Year",
                         String.valueOf(o[0]),
-                        String.format("În %s, %.0f%% din ascultări au fost un singur gen (%s).", o[0], (double) o[2] * 100, o[1])
+                        String.format("In %s, %.0f%% of your streams were a single genre (%s).", o[0], (double) o[2] * 100, o[1])
                 )));
 
         // 3. Anchor genre
@@ -391,9 +391,9 @@ public class TasteEvolutionService {
                     String dominantNew = dominantGenre(vectors.get(tp.toMonth()));
                     cards.add(new StoryCard(
                             "TURNING_POINT",
-                            "Momentul de cotitură",
+                            "Turning Point",
                             humanMonth(tp.toMonth()),
-                            "În " + humanMonth(tp.toMonth()) + " gustul tău a virat puternic" + (dominantNew != null ? " spre " + dominantNew : "") + "."
+                            "In " + humanMonth(tp.toMonth()) + " your taste shifted strongly" + (dominantNew != null ? " towards " + dominantNew : "") + "."
                     ));
                 });
 
@@ -404,15 +404,15 @@ public class TasteEvolutionService {
         if (!projections.isEmpty()) {
             GenreProjection top = projections.get(0);
             String certainty = switch (top.confidenceLabel()) {
-                case "HIGH" -> "Tendința e clară";
-                case "MEDIUM" -> "Tendința e moderată";
-                default -> "Tendința e incertă, dar";
+                case "HIGH" -> "The trend is clear";
+                case "MEDIUM" -> "The trend is moderate";
+                default -> "The trend is uncertain, but";
             };
             cards.add(new StoryCard(
                     "FUTURE_DIRECTION",
-                    "Încotro te îndrepți",
+                    "Future Direction",
                     top.genreName(),
-                    certainty + ": în ultimele luni asculți tot mai mult " + top.genreName() + "."
+                    certainty + ": in recent months you are listening more and more to " + top.genreName() + "."
             ));
         }
 
@@ -453,9 +453,9 @@ public class TasteEvolutionService {
         if (anchor != null) {
             cards.add(new StoryCard(
                     "ANCHOR_GENRE",
-                    "Genul tău de bază",
+                    "Anchor Genre",
                     anchor,
-                    anchor + " te-a însoțit constant de-a lungul anilor — ancora gustului tău."
+                    anchor + " consistently accompanied you over the years — the anchor of your taste."
             ));
         }
     }
@@ -488,9 +488,9 @@ public class TasteEvolutionService {
         if (meteor != null) {
             cards.add(new StoryCard(
                     "METEOR_GENRE",
-                    "Genul-meteor",
+                    "Meteor Genre",
                     meteor,
-                    meteor + " a explodat brusc în " + humanMonth(meteorMonth) + ", apoi s-a estompat — o pasiune de moment."
+                    meteor + " spiked suddenly in " + humanMonth(meteorMonth) + ", then faded — a passing passion."
             ));
         }
     }
@@ -512,17 +512,17 @@ public class TasteEvolutionService {
         avgByYear.entrySet().stream().min(Map.Entry.comparingByValue())
                 .ifPresent(e -> cards.add(new StoryCard(
                         "MOST_STABLE_YEAR",
-                        "Cel mai stabil an",
+                        "Most Stable Year",
                         e.getKey(),
-                        "În " + e.getKey() + " gustul tău a fost cel mai constant — puține schimbări."
+                        "In " + e.getKey() + " your taste was the most stable — few changes."
                 )));
 
         avgByYear.entrySet().stream().max(Map.Entry.comparingByValue())
                 .ifPresent(e -> cards.add(new StoryCard(
                         "MOST_EXPLORATORY_YEAR",
-                        "Cel mai exploratoriu an",
+                        "Most Exploratory Year",
                         e.getKey(),
-                        "În " + e.getKey() + " ai explorat cel mai mult — gustul s-a schimbat des."
+                        "In " + e.getKey() + " you explored the most — your taste shifted frequently."
                 )));
     }
 
@@ -543,9 +543,9 @@ public class TasteEvolutionService {
             String genre = (String) rows.get(0).get("genre");
             cards.add(new StoryCard(
                     "NOCTURNAL_GENRE",
-                    "Genul tău nocturn",
+                    "Nocturnal Genre",
                     genre,
-                    "Acesta este genul pe care îl asculți cel mai des la ore târzii în noapte."
+                    "This is the genre you listen to most frequently late at night."
             ));
         }
     }
@@ -572,9 +572,9 @@ public class TasteEvolutionService {
             int count = ((Number) rows.get(0).get("months_count")).intValue();
             cards.add(new StoryCard(
                     "RED_THREAD_TRACK",
-                    "Melodia-fir-roșu",
+                    "Red Thread Track",
                     track,
-                    String.format("Piesa \"%s\" de la %s a fost prezentă în %d luni diferite din istoricul tău.", track, artist, count)
+                    String.format("The song \"%s\" by %s was present in %d different months of your listening history.", track, artist, count)
             ));
         }
     }

@@ -5,6 +5,7 @@ import com.alltimewrapped.backend.model.*;
 import com.alltimewrapped.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -20,6 +21,7 @@ public class FriendshipService {
     private final FriendshipRepository friendshipRepository;
     private final AppUserRepository appUserRepository;
     private final SystemSettingsService systemSettingsService;
+    private final JdbcTemplate jdbcTemplate;
 
     // ===== SEND REQUEST =====
     @Transactional
@@ -136,7 +138,21 @@ public class FriendshipService {
         return friendshipRepository.findAcceptedFriendships(userId).stream()
             .map(f -> {
                 AppUser other = f.getRequester().getId().equals(userId) ? f.getAddressee() : f.getRequester();
-                return new FriendDTO(other.getId(), other.getUsername(), f.getRespondedAt());
+                String bio = null;
+                String favGenre = null;
+                String avatarUrl = null;
+                try {
+                    java.util.Map<String, Object> data = jdbcTemplate.queryForMap(
+                        "SELECT bio, favorite_genre, avatar_url FROM oltp.user_profile_data WHERE user_id = ?",
+                        other.getId()
+                    );
+                    bio = (String) data.get("bio");
+                    favGenre = (String) data.get("favorite_genre");
+                    avatarUrl = (String) data.get("avatar_url");
+                } catch (Exception e) {
+                    // Profile data does not exist yet
+                }
+                return new FriendDTO(other.getId(), other.getUsername(), f.getRespondedAt(), favGenre, avatarUrl, bio);
             })
             .toList();
     }
@@ -182,7 +198,21 @@ public class FriendshipService {
             .limit(20)
             .map(u -> {
                 String status = computeFriendshipStatus(currentUserId, u.getId());
-                return new UserSearchDTO(u.getId(), u.getUsername(), status);
+                String bio = null;
+                String favGenre = null;
+                String avatarUrl = null;
+                try {
+                    java.util.Map<String, Object> data = jdbcTemplate.queryForMap(
+                        "SELECT bio, favorite_genre, avatar_url FROM oltp.user_profile_data WHERE user_id = ?",
+                        u.getId()
+                    );
+                    bio = (String) data.get("bio");
+                    favGenre = (String) data.get("favorite_genre");
+                    avatarUrl = (String) data.get("avatar_url");
+                } catch (Exception e) {
+                    // Profile data does not exist yet
+                }
+                return new UserSearchDTO(u.getId(), u.getUsername(), status, avatarUrl, favGenre, bio);
             })
             .toList();
     }

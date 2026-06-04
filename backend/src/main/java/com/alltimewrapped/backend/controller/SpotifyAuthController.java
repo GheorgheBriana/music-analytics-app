@@ -33,8 +33,9 @@ public class SpotifyAuthController {
 
     // Handles the callback received from Spotify after the user logs in
     @GetMapping("/callback")
-    public ResponseEntity<Void> handleSpotifyCallback(@RequestParam String code) {
-        AppUser user = spotifyAuthService.handleSpotifyCallback(code);
+    public ResponseEntity<Void> handleSpotifyCallback(@RequestParam String code, jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String ip = getClientIp(httpRequest);
+        AppUser user = spotifyAuthService.handleSpotifyCallback(code, ip);
 
         String redirectUrl = frontendRedirectUri + "?userId=" + user.getId();
 
@@ -42,5 +43,16 @@ public class SpotifyAuthController {
                 .status(302)
                 .location(URI.create(redirectUrl))
                 .build();
+    }
+
+    private String getClientIp(jakarta.servlet.http.HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 }

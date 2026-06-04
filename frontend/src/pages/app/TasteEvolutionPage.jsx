@@ -104,8 +104,7 @@ function StreamGraph({ streams, months, colorScale }) {
                 const valuePercent = d.data[monthIdx][d.key] * 100;
 
                 // Human month name mapping helper
-                const parts = monthName.split('-');
-                const monthNames = ["Ianuarie", "Februarie", "Martie", "Aprilie", "Mai", "Iunie", "Iulie", "August", "Septembrie", "Octombrie", "Noiembrie", "Decembrie"];
+                const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                 let humanMonth = monthName;
                 try {
                     const idx = parseInt(parts[1]) - 1;
@@ -116,8 +115,8 @@ function StreamGraph({ streams, months, colorScale }) {
                     <div style="font-weight: 800; color: ${colorScale(d.key)}; font-size: 15px; margin-bottom: 6px; font-family: 'Outfit', sans-serif;">
                         ${d.key}
                     </div>
-                    <div style="color: #aeb3c5; font-size: 12px; margin-bottom: 2px;">Lună: <span style="color: #fff; font-weight: 600;">${humanMonth}</span></div>
-                    <div style="color: #aeb3c5; font-size: 12px;">Proporție: <span style="color: #1DB954; font-weight: 700;">${valuePercent.toFixed(1)}%</span></div>
+                    <div style="color: #aeb3c5; font-size: 12px; margin-bottom: 2px;">Month: <span style="color: #fff; font-weight: 600;">${humanMonth}</span></div>
+                    <div style="color: #aeb3c5; font-size: 12px;">Proportion: <span style="color: #1DB954; font-weight: 700;">${valuePercent.toFixed(1)}%</span></div>
                 `)
                 .style('left', (event.pageX + 18) + 'px')
                 .style('top', (event.pageY - 20) + 'px');
@@ -136,7 +135,7 @@ function StreamGraph({ streams, months, colorScale }) {
                 const monthStr = months[Math.round(d)];
                 if (!monthStr) return '';
                 const parts = monthStr.split('-');
-                const monthNames = ["Ian", "Feb", "Mar", "Apr", "Mai", "Iun", "Iul", "Aug", "Sep", "Oct", "Noi", "Dec"];
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                 try {
                     const idx = parseInt(parts[1]) - 1;
                     return monthNames[idx] + ' ' + parts[0];
@@ -215,7 +214,7 @@ function VolatilityChart({ volatility, months }) {
     const formatHumanMonth = (monthStr) => {
         if (!monthStr || !monthStr.includes('-')) return monthStr;
         const parts = monthStr.split('-');
-        const monthNames = ["Ian", "Feb", "Mar", "Apr", "Mai", "Iun", "Iul", "Aug", "Sep", "Oct", "Noi", "Dec"];
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         try {
             const idx = parseInt(parts[1]) - 1;
             return monthNames[idx] + ' ' + parts[0];
@@ -278,7 +277,7 @@ function VolatilityChart({ volatility, months }) {
                             fontFamily="'Outfit', sans-serif"
                             letterSpacing="0.5px"
                         >
-                            PRAG DE ANOMALIE (μ + 1.5σ) = {threshold.toFixed(3)}
+                            ANOMALY THRESHOLD (μ + 1.5σ) = {threshold.toFixed(3)}
                         </text>
                     </g>
                 )}
@@ -334,7 +333,7 @@ function VolatilityChart({ volatility, months }) {
                                 </g>
                             )}
                             <title>
-                                {`Tranziție: ${formatHumanMonth(p.data.fromMonth)} → ${formatHumanMonth(p.data.toMonth)}\nDistance: ${p.data.distance.toFixed(4)}${isTp ? ' (Moment de cotitură)' : ''}`}
+                                {`Transition: ${formatHumanMonth(p.data.fromMonth)} → ${formatHumanMonth(p.data.toMonth)}\nDistance: ${p.data.distance.toFixed(4)}${isTp ? ' (Turning point)' : ''}`}
                             </title>
                         </g>
                     );
@@ -354,7 +353,7 @@ const GENRE_COLORS = {
     'jazz': '#14b8a6',
     'classical': '#10b981',
     'electronic': '#ec4899',
-    'altele': '#6b7280',
+    'other': '#6b7280',
     'metal': '#b91c1c',
     'house': '#6366f1',
     'techno': '#a855f7',
@@ -381,27 +380,27 @@ function getGenreColor(genreName) {
 const getCardMeta = (type) => {
     switch (type) {
         case 'MOST_DIVERSE_YEAR':
-            return { icon: '🎨', title: 'Anul Cel Mai Divers', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.2)' };
+            return { icon: '🎨', title: 'Most Diverse Year', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.2)' };
         case 'MOST_LOYAL_YEAR':
-            return { icon: '🤝', title: 'Cel Mai Fidel An', color: '#10b981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)' };
+            return { icon: '🤝', title: 'Most Loyal Year', color: '#10b981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)' };
         case 'ANCHOR_GENRE':
-            return { icon: '⚓', title: 'Genul-Ancoră', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.08)', border: 'rgba(6, 182, 212, 0.2)' };
+            return { icon: '⚓', title: 'Anchor Genre', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.08)', border: 'rgba(6, 182, 212, 0.2)' };
         case 'METEOR_GENRE':
-            return { icon: '☄️', title: 'Genul-Meteor', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)' };
+            return { icon: '☄️', title: 'Meteor Genre', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)' };
         case 'TURNING_POINT':
-            return { icon: '⚡', title: 'Punct de Cotitură', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.2)' };
+            return { icon: '⚡', title: 'Turning Point', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.2)' };
         case 'MOST_STABLE_YEAR':
-            return { icon: '🛡️', title: 'Cel Mai Stabil An', color: '#14b8a6', bg: 'rgba(20, 184, 166, 0.08)', border: 'rgba(20, 184, 166, 0.2)' };
+            return { icon: '🛡️', title: 'Most Stable Year', color: '#14b8a6', bg: 'rgba(20, 184, 166, 0.08)', border: 'rgba(20, 184, 166, 0.2)' };
         case 'MOST_EXPLORATORY_YEAR':
-            return { icon: '🧭', title: 'Cel Mai Exploratoriu An', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.2)' };
+            return { icon: '🧭', title: 'Most Exploratory Year', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.2)' };
         case 'FUTURE_DIRECTION':
-            return { icon: '🔮', title: 'Direcția Viitoare', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.08)', border: 'rgba(236, 72, 153, 0.2)' };
+            return { icon: '🔮', title: 'Future Direction', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.08)', border: 'rgba(236, 72, 153, 0.2)' };
         case 'NOCTURNAL_GENRE':
-            return { icon: '🌙', title: 'Genul Nocturn', color: '#818cf8', bg: 'rgba(129, 140, 248, 0.08)', border: 'rgba(129, 140, 248, 0.2)' };
+            return { icon: '🌙', title: 'Nocturnal Genre', color: '#818cf8', bg: 'rgba(129, 140, 248, 0.08)', border: 'rgba(129, 140, 248, 0.2)' };
         case 'RED_THREAD_TRACK':
-            return { icon: '🧵', title: 'Melodia Fir-Roșu', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.08)', border: 'rgba(244, 63, 94, 0.2)' };
+            return { icon: '🧵', title: 'Red Thread Track', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.08)', border: 'rgba(244, 63, 94, 0.2)' };
         default:
-            return { icon: '🎵', title: 'Muzica Mea', color: '#1DB954', bg: 'rgba(29, 185, 84, 0.08)', border: 'rgba(29, 185, 84, 0.2)' };
+            return { icon: '🎵', title: 'My Music', color: '#1DB954', bg: 'rgba(29, 185, 84, 0.08)', border: 'rgba(29, 185, 84, 0.2)' };
     }
 };
 
@@ -415,7 +414,7 @@ function TasteEvolutionPage() {
     useEffect(() => {
         async function loadEvolution() {
             if (!activeUserId) {
-                setError('Nu am găsit niciun utilizator autentificat.');
+                setError('No authenticated user found.');
                 setLoading(false);
                 return;
             }
@@ -426,7 +425,7 @@ function TasteEvolutionPage() {
                 const data = await getTasteEvolution(activeUserId);
                 setEvolution(data);
             } catch (err) {
-                setError('Evoluția gusturilor nu a putut fi încărcată.');
+                setError('Taste evolution could not be loaded.');
             } finally {
                 setLoading(false);
             }
@@ -439,7 +438,7 @@ function TasteEvolutionPage() {
         return (
             <div className="all-time-section">
                 <h2>Taste Evolution</h2>
-                <p className="empty-stats-message">Analizăm evoluția gusturilor tale muzicale...</p>
+                <p className="empty-stats-message">Analyzing your music taste evolution...</p>
             </div>
         );
     }
@@ -459,9 +458,9 @@ function TasteEvolutionPage() {
                 <h2>Taste Evolution</h2>
                 <div className="all-time-panel" style={{ padding: '32px', textAlign: 'center' }}>
                     <span style={{ fontSize: '48px', marginBottom: '16px', display: 'block' }}>🧭</span>
-                    <h3>Date Insuficiente</h3>
+                    <h3>Insufficient Data</h3>
                     <p style={{ color: '#aeb3c5', maxWidth: '600px', margin: '12px auto 0', lineHeight: '1.6' }}>
-                        {evolution?.message || 'Evoluția gusturilor tale muzicale necesită mai multe audiții de-a lungul timpului. Asigură-te că ai realizat un import complet.'}
+                        {evolution?.message || 'Your music taste evolution requires more listening history over time. Make sure you have completed an import.'}
                     </p>
                 </div>
             </div>
@@ -485,15 +484,15 @@ function TasteEvolutionPage() {
             <div className="all-time-header">
                 <div>
                     <h2>Taste Evolution Analysis</h2>
-                    <p>Analiza detaliată a modului în care preferințele tale muzicale s-au schimbat de-a lungul celor {evolution.monthsCount} luni ({months[0]} → {months[months.length - 1]}).</p>
+                    <p>Detailed analysis of how your music preferences changed over the course of {evolution.monthsCount} months ({months[0]} → {months[months.length - 1]}).</p>
                 </div>
             </div>
 
             {/* STREAM GRAPH PANEL */}
             <div className="all-time-panel" style={{ padding: '24px', borderRadius: '24px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Fluxul Genurilor Muzicale (D3 Stream Graph)</h3>
+                <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Music Genre Flow (D3 Stream Graph)</h3>
                 <p style={{ margin: '0 0 24px', fontSize: '13px', color: '#a8a8b8' }}>
-                    Reprezentarea dinamică a proporției de audiții lunare pentru fiecare gen. Mișcă mouse-ul peste fluxuri pentru a vedea detaliile din fiecare lună.
+                    Dynamic representation of the monthly play counts proportion for each genre. Move the mouse over streams to see details for each month.
                 </p>
                 
                 <StreamGraph 
@@ -515,9 +514,9 @@ function TasteEvolutionPage() {
 
             {/* VOLATILITY PANEL */}
             <div className="all-time-panel" style={{ padding: '24px', borderRadius: '24px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Volatilitatea Gusturilor (Distanța Cosine consecutivă)</h3>
+                <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Taste Volatility (Consecutive Cosine Distance)</h3>
                 <p style={{ margin: '0 0 24px', fontSize: '13px', color: '#a8a8b8' }}>
-                    Măsura distanței matematice (1 - Cosine Similarity) dintre două luni consecutive. Punctele roșii marchează momentele de viraj brusc în ascultare (outliers care depășesc pragul de detecție statistică).
+                    Measurement of the mathematical distance (1 - Cosine Similarity) between two consecutive months. Red dots mark sudden shifts in listening (outliers that exceed the statistical detection threshold).
                 </p>
 
                 <VolatilityChart 
@@ -528,7 +527,7 @@ function TasteEvolutionPage() {
 
             {/* STORY CARDS GRID */}
             <div>
-                <h3 style={{ margin: '0 0 16px', fontFamily: "'Outfit', sans-serif", fontSize: '20px' }}>Reperele Călătoriei Tale Muzicale</h3>
+                <h3 style={{ margin: '0 0 16px', fontFamily: "'Outfit', sans-serif", fontSize: '20px' }}>Milestones of Your Music Journey</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                     {evolution.cards.map((card, idx) => {
                         const meta = getCardMeta(card.type);
@@ -609,9 +608,9 @@ function TasteEvolutionPage() {
             {/* GENRE PROJECTIONS PANEL */}
             {evolution.projections && evolution.projections.length > 0 && (
                 <div className="all-time-panel" style={{ padding: '24px', borderRadius: '24px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                    <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Direcții de Creștere & Proiecții (Regresie Liniară Ponderată - WLS)</h3>
+                    <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Growth Directions & Projections (Weighted Linear Regression - WLS)</h3>
                     <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#a8a8b8' }}>
-                        Genurile cu pantă de creștere pozitivă (m &gt; 0) în ultimele 6 luni, calculate prin modelul de regresie ponderată exponențial (Weighted Least Squares - WLS) care prioritizează redările recente. Acest set reprezintă baza algoritmului de Discovery (content-based fallback).
+                        Genres with a positive growth slope (m &gt; 0) over the last 6 months, calculated using the exponential weighted regression model (Weighted Least Squares - WLS) that prioritizes recent plays. This set is the basis for the Discovery algorithm (content-based fallback).
                     </p>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
@@ -631,11 +630,11 @@ function TasteEvolutionPage() {
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                    <span style={{ fontSize: '11px', color: '#aeb3c5' }}>Pantă (m)</span>
-                                    <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#1db954' }}>+{p.slope.toFixed(3)} plays/lună</span>
+                                    <span style={{ fontSize: '11px', color: '#aeb3c5' }}>Slope (m)</span>
+                                    <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#1db954' }}>+{p.slope.toFixed(3)} plays/month</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                    <span style={{ fontSize: '11px', color: '#aeb3c5' }}>Coeficient R²</span>
+                                    <span style={{ fontSize: '11px', color: '#aeb3c5' }}>R² Coefficient</span>
                                     <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff' }}>{p.rSquared.toFixed(3)}</span>
                                 </div>
                             </div>

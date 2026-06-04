@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
     getMyFriends, getIncomingRequests, getOutgoingRequests, 
     searchUsers, sendFriendRequest, acceptRequest, rejectRequest, 
@@ -6,7 +7,14 @@ import {
 } from '../../api/friendsApi'
 import './FriendsPage.css'
 
+function shouldShowBio(bio) {
+    if (!bio) return false;
+    const clean = bio.trim().toLowerCase();
+    return clean !== '' && clean !== 'null' && clean !== 'direct test bio' && clean !== 'test bio' && clean !== 'no bio yet';
+}
+
 function FriendsPage() {
+    const navigate = useNavigate()
     const [tab, setTab] = useState('friends')
     const [friends, setFriends] = useState([])
     const [incoming, setIncoming] = useState([])
@@ -166,15 +174,38 @@ function FriendsPage() {
                         ) : (
                             friends.map(f => (
                                 <div key={f.userId} className="friend-info-card">
+                                    <div className="friend-avatar">
+                                        {f.avatarUrl ? (
+                                            <img src={f.avatarUrl} alt={f.username} className="friend-avatar-img" />
+                                        ) : (
+                                            <span className="friend-avatar-placeholder">{(f.username || '?').charAt(0).toUpperCase()}</span>
+                                        )}
+                                    </div>
                                     <div className="friend-card-details">
-                                        <span className="friend-card-name">{f.username}</span>
+                                        <div className="friend-card-header">
+                                            <span className="friend-card-name">{f.username}</span>
+                                            {f.favoriteGenre && (
+                                                <span className="friend-card-genre">
+                                                    Favorite: <strong>{f.favoriteGenre}</strong>
+                                                </span>
+                                            )}
+                                        </div>
+                                        {shouldShowBio(f.bio) && <p className="friend-card-bio">"{f.bio}"</p>}
                                         <span className="friend-card-date">
-                                            Friends since {new Date(f.friendsSince).toLocaleDateString('ro-RO')}
+                                            Friends since {new Date(f.friendsSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                                         </span>
                                     </div>
-                                    <button onClick={() => handleUnfriend(f.userId)} className="friend-action-btn unfriend">
-                                        Unfriend
-                                    </button>
+                                    <div className="friend-card-action-group">
+                                        <button 
+                                            onClick={() => navigate(`/app/profile/${f.userId}`)} 
+                                            className="friend-action-btn view-profile"
+                                        >
+                                            View Profile
+                                        </button>
+                                        <button onClick={() => handleUnfriend(f.userId)} className="friend-action-btn unfriend">
+                                            Unfriend
+                                        </button>
+                                    </div>
                                 </div>
                             ))
                         )}
@@ -190,8 +221,13 @@ function FriendsPage() {
                         ) : (
                             incoming.map(r => (
                                 <div key={r.requestId} className="friend-info-card">
+                                    <div className="friend-avatar">
+                                        <span className="friend-avatar-placeholder">{(r.otherUsername || '?').charAt(0).toUpperCase()}</span>
+                                    </div>
                                     <div className="friend-card-details">
-                                        <span className="friend-card-name">{r.otherUsername}</span>
+                                        <div className="friend-card-header">
+                                            <span className="friend-card-name">{r.otherUsername}</span>
+                                        </div>
                                         <span className="friend-card-date">Wants to compare music profiles</span>
                                     </div>
                                     <div className="friend-card-action-group">
@@ -217,8 +253,13 @@ function FriendsPage() {
                         ) : (
                             outgoing.map(r => (
                                 <div key={r.requestId} className="friend-info-card">
+                                    <div className="friend-avatar">
+                                        <span className="friend-avatar-placeholder">{(r.otherUsername || '?').charAt(0).toUpperCase()}</span>
+                                    </div>
                                     <div className="friend-card-details">
-                                        <span className="friend-card-name">{r.otherUsername}</span>
+                                        <div className="friend-card-header">
+                                            <span className="friend-card-name">{r.otherUsername}</span>
+                                        </div>
                                         <span className="friend-card-date">Waiting for response</span>
                                     </div>
                                     <button onClick={() => handleCancel(r.requestId)} className="friend-action-btn cancel">
@@ -254,7 +295,25 @@ function FriendsPage() {
                             <div className="friends-search-results-grid">
                                 {searchResults.map(u => (
                                     <div key={u.userId} className="friend-info-card search-result">
-                                        <span className="friend-card-name">{u.username}</span>
+                                        <div className="friend-avatar">
+                                            {u.avatarUrl ? (
+                                                <img src={u.avatarUrl} alt={u.username} className="friend-avatar-img" />
+                                            ) : (
+                                                <span className="friend-avatar-placeholder">{(u.username || '?').charAt(0).toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <div className="friend-card-details">
+                                            <div className="friend-card-header">
+                                                <span className="friend-card-name">{u.username}</span>
+                                                {u.favoriteGenre && (
+                                                    <span className="friend-card-genre">
+                                                        Favorite: <strong>{u.favoriteGenre}</strong>
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {shouldShowBio(u.bio) && <p className="friend-card-bio">"{u.bio}"</p>}
+                                            <span className="friend-card-date">Ready to connect</span>
+                                        </div>
                                         
                                         {u.friendshipStatus === 'NONE' && (
                                             <button onClick={() => handleSendRequest(u.userId)} className="friend-action-btn add">
@@ -270,7 +329,15 @@ function FriendsPage() {
                                             </div>
                                         )}
                                         {u.friendshipStatus === 'FRIENDS' && (
-                                            <span className="friendship-status-pill friends">Already Friends</span>
+                                            <div className="friend-card-action-group">
+                                                <button 
+                                                    onClick={() => navigate(`/app/profile/${u.userId}`)} 
+                                                    className="friend-action-btn view-profile"
+                                                >
+                                                    View Profile
+                                                </button>
+                                                <span className="friendship-status-pill friends">Friends</span>
+                                            </div>
                                         )}
                                         {u.friendshipStatus === 'REJECTED' && (
                                             <button onClick={() => handleSendRequest(u.userId)} className="friend-action-btn add">

@@ -31,8 +31,8 @@ public class CorsConfig {
         // Allow credentials (necessary when using headers or cookies in requests)
         config.setAllowCredentials(true);
         
-        // Register configuration for all API paths
-        source.registerCorsConfiguration("/api/**", config);
+        // Register configuration for all paths (including API and WebSockets)
+        source.registerCorsConfiguration("/**", config);
         
         return new CorsFilter(source);
     }

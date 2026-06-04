@@ -7,6 +7,7 @@ import com.alltimewrapped.backend.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -20,6 +21,7 @@ import java.util.Base64;
 public class SpotifyAuthService {
 
     private final AppUserRepository appUserRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${spotify.client-id}")
     private String clientId;
@@ -45,13 +47,27 @@ public class SpotifyAuthService {
                 .toUriString();
     }
 
-    // Handles the callback code received from Spotify and saves the logged-in user
-    public AppUser handleSpotifyCallback(String code) {
+    // Handles the callback received from Spotify after the user logs in
+    public AppUser handleSpotifyCallback(String code, String ip) {
         SpotifyTokenResponseDTO tokenResponse = requestAccessToken(code);
 
         SpotifyUserProfileDTO userProfile = requestSpotifyUserProfile(tokenResponse.getAccessToken());
 
-        return saveOrUpdateSpotifyUser(userProfile, tokenResponse);
+        AppUser user = saveOrUpdateSpotifyUser(userProfile, tokenResponse);
+
+        updateLastLogin(user.getId(), ip);
+
+        return user;
+    }
+
+    private void updateLastLogin(Long userId, String ip) {
+        jdbcTemplate.update("""
+            INSERT INTO oltp.user_profile_sec (user_id, last_login_ip, last_login_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id) DO UPDATE
+            SET last_login_ip = EXCLUDED.last_login_ip,
+                last_login_at = EXCLUDED.last_login_at
+            """, userId, ip);
     }
 
     // Exchanges the authorization code for an access token

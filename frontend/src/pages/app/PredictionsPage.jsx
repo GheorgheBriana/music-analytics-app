@@ -148,14 +148,25 @@ Generated with All-Time Wrapped.`
                 <div className="overview-card" style={{ position: 'relative' }}>
                     <span>Predicted top artist</span>
                     <strong>{predictions.predictedTopArtist.name}</strong>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                        <span style={{ fontSize: '11px', color: '#a8a8b8' }}>Decay weight score</span>
+                    <div 
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}
+                        title="Calculated probability that this artist will remain your top artist, prioritizing your most recent listens."
+                    >
+                        <span style={{ fontSize: '11px', color: '#a8a8b8', borderBottom: '1px dotted #a8a8b8', cursor: 'help' }}>
+                            Prediction confidence
+                        </span>
                         <span style={{ 
                             fontSize: '11px', 
                             fontWeight: 'bold', 
                             color: predictions.predictedTopArtist.confidenceLabel === 'HIGH' ? '#1db954' : predictions.predictedTopArtist.confidenceLabel === 'MEDIUM' ? '#ffc107' : '#ff4d6d' 
                         }}>
-                            {(predictions.predictedTopArtist.confidence * 100).toFixed(1)}% ({predictions.predictedTopArtist.confidenceLabel})
+                            {(predictions.predictedTopArtist.confidence * 100).toFixed(1)}% ({
+                                predictions.predictedTopArtist.confidenceLabel === 'HIGH' 
+                                    ? 'High' 
+                                    : predictions.predictedTopArtist.confidenceLabel === 'MEDIUM' 
+                                        ? 'Medium' 
+                                        : 'Low'
+                            })
                         </span>
                     </div>
                 </div>
@@ -412,12 +423,12 @@ Generated with All-Time Wrapped.`
 
             {/* SHARE ACTION PANEL */}
             <div className="all-time-panel" style={{ padding: '24px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <h3 style={{ margin: 0 }}>Shareable Summary</h3>
+                <h3 style={{ margin: 0 }}>Copy My Summary</h3>
                 <p style={{ margin: 0, color: '#a8a8b8', fontSize: '14px' }}>
                     Generate a formatted statistical summary of your predictions that can be copied directly to your clipboard.
                 </p>
                 <button className="primary-btn" onClick={handleSharePredictions} style={{ width: 'fit-content' }}>
-                    Share my predictions
+                    Copy My Summary
                 </button>
                 {shareStatus && (
                     <p style={{ marginTop: '4px', color: '#1db954', fontSize: '14px', fontWeight: 'bold' }}>

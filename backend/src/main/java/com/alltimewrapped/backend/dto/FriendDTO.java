@@ -10,4 +10,8 @@ public class FriendDTO {
     private Long userId;
     private String username;
     private OffsetDateTime friendsSince;
+    private String favoriteGenre;
+    private String avatarUrl;
+    private String bio;
 }
+

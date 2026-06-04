@@ -87,6 +87,9 @@ function UserLayout() {
                                 Welcome, {user.username}!
                             </span>
                         )}
+                        <NavLink to="/app/profile" className="profile-btn-header">
+                            Profile
+                        </NavLink>
                         <button className="back-btn" onClick={handleLogout}>
                             Logout
                         </button>
@@ -174,10 +177,10 @@ function UserLayout() {
                     </NavLink>
 
                     <NavLink
-                        to="/app/profile"
+                        to="/app/import"
                         className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
                     >
-                        Profile / Import
+                        Import ZIP
                     </NavLink>
                 </div>
 

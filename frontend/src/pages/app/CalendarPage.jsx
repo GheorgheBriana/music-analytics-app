@@ -6,6 +6,7 @@ function CalendarPage() {
     const [importedStats, setImportedStats] = useState(null)
     const [dailyActivity, setDailyActivity] = useState([])
     const [selectedHeatmapYear, setSelectedHeatmapYear] = useState(null)
+    const [selectedMonthYear, setSelectedMonthYear] = useState('All')
 
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -29,6 +30,7 @@ function CalendarPage() {
 
                 const latestYear = getLatestAvailableYear(statsData)
                 setSelectedHeatmapYear(latestYear)
+                setSelectedMonthYear(latestYear.toString())
 
                 await loadDailyActivityForYear(latestYear)
             } catch (error) {
@@ -152,11 +154,23 @@ function CalendarPage() {
             )
         }
 
-        const maxPlayCount = getMaxPlayCount(activityByMonth)
+        const filteredActivity = selectedMonthYear === 'All'
+            ? activityByMonth
+            : activityByMonth.filter((item) => item.year.toString() === selectedMonthYear)
+
+        if (filteredActivity.length === 0) {
+            return (
+                <p className="empty-stats-message">
+                    No monthly activity found for year {selectedMonthYear}.
+                </p>
+            )
+        }
+
+        const maxPlayCount = getMaxPlayCount(filteredActivity)
 
         return (
             <div className="bar-chart-list">
-                {activityByMonth.map((item) => {
+                {filteredActivity.map((item) => {
                     const barWidth = `${(item.playCount / maxPlayCount) * 100}%`
 
                     return (
@@ -250,7 +264,28 @@ function CalendarPage() {
                     </div>
 
                     <div className="all-time-panel">
-                        <h3>By Month</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                            <h3 style={{ margin: 0 }}>By Month</h3>
+                            <select
+                                style={{
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    outline: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                }}
+                                value={selectedMonthYear}
+                                onChange={(e) => setSelectedMonthYear(e.target.value)}
+                            >
+                                <option style={{ background: '#222533' }} value="All">All Years</option>
+                                {availableHeatmapYears.map(y => (
+                                    <option style={{ background: '#222533' }} key={y} value={y.toString()}>{y}</option>
+                                ))}
+                            </select>
+                        </div>
                         {renderActivityByMonth()}
                     </div>
                 </div>

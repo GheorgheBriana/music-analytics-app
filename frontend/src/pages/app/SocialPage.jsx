@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { getMyFriends } from '../../api/friendsApi'
 import { compareUsers } from '../../api/socialApi'
 import './SocialPage.css'
 
 function SocialPage() {
+    const [searchParams] = useSearchParams()
+    const compareWith = searchParams.get('compareWith')
+
     const [users, setUsers] = useState([])
     const [selectedUserId, setSelectedUserId] = useState('')
     const [comparison, setComparison] = useState(null)
@@ -12,23 +16,43 @@ function SocialPage() {
     const [error, setError] = useState('')
 
     const activeUserId = localStorage.getItem('userId')
+    const selectedFriend = users.find(u => String(u.id) === String(selectedUserId))
 
     useEffect(() => {
         async function loadFriends() {
             try {
                 setLoading(true)
                 const myFriends = await getMyFriends()
-                setUsers(myFriends.map(f => ({ id: f.userId, username: f.username })))
+                const formattedUsers = myFriends.map(f => ({
+                    id: f.userId,
+                    username: f.username,
+                    favoriteGenre: f.favoriteGenre,
+                    avatarUrl: f.avatarUrl,
+                    bio: f.bio
+                }))
+                setUsers(formattedUsers)
+
+                // If compareWith query param is present, select and run compare
+                if (compareWith) {
+                    const friendExists = formattedUsers.some(u => String(u.id) === String(compareWith))
+                    if (friendExists) {
+                        setSelectedUserId(compareWith)
+                        setComparing(true)
+                        const result = await compareUsers(activeUserId, compareWith)
+                        setComparison(result)
+                    }
+                }
             } catch (err) {
                 setError('Failed to load friends.')
             } finally {
                 setLoading(false)
+                setComparing(false)
             }
         }
         if (activeUserId) {
             loadFriends()
         }
-    }, [activeUserId])
+    }, [activeUserId, compareWith])
 
     async function handleCompare() {
         if (!selectedUserId) return
@@ -103,6 +127,28 @@ function SocialPage() {
                                 <span className="score-value">{comparison.similarityScore}%</span>
                                 <span className="score-label">Compatibility</span>
                             </div>
+                            {selectedFriend && (selectedFriend.favoriteGenre || selectedFriend.bio) && (
+                                <div className="friend-taste-preview" style={{ marginTop: '20px', background: 'rgba(255, 255, 255, 0.03)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: '280px', margin: '20px auto 0 auto' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div className="friend-avatar" style={{ width: '32px', height: '32px', fontSize: '14px', margin: 0, borderRadius: '50%', overflow: 'hidden', background: 'linear-gradient(135deg, #1db954, #0a5527)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', flexShrink: 0 }}>
+                                            {selectedFriend.avatarUrl ? (
+                                                <img src={selectedFriend.avatarUrl} alt={selectedFriend.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (
+                                                <span>{(selectedFriend.username || '?').charAt(0).toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <div style={{ textAlign: 'left' }}>
+                                            <div style={{ fontSize: '10px', color: '#8a90a6', textTransform: 'uppercase', fontWeight: 700 }}>Favorite Genre</div>
+                                            <div style={{ fontSize: '13px', color: '#1db954', fontWeight: 'bold' }}>{selectedFriend.favoriteGenre || 'unknown'}</div>
+                                        </div>
+                                    </div>
+                                    {selectedFriend.bio && (
+                                        <p style={{ fontSize: '12px', color: '#aeb3c5', fontStyle: 'italic', margin: 0, textAlign: 'left', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '6px' }}>
+                                            "{selectedFriend.bio}"
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Academic Explanation Card */}

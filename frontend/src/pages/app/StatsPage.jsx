@@ -2,18 +2,18 @@ import { useEffect, useState, useMemo } from 'react'
 import './StatsPage.css'
 
 const monthsList = [
-    { value: 0, label: 'Ianuarie' },
-    { value: 1, label: 'Februarie' },
-    { value: 2, label: 'Martie' },
-    { value: 3, label: 'Aprilie' },
-    { value: 4, label: 'Mai' },
-    { value: 5, label: 'Iunie' },
-    { value: 6, label: 'Iulie' },
+    { value: 0, label: 'January' },
+    { value: 1, label: 'February' },
+    { value: 2, label: 'March' },
+    { value: 3, label: 'April' },
+    { value: 4, label: 'May' },
+    { value: 5, label: 'June' },
+    { value: 6, label: 'July' },
     { value: 7, label: 'August' },
-    { value: 8, label: 'Septembrie' },
-    { value: 9, label: 'Octombrie' },
-    { value: 10, label: 'Noiembrie' },
-    { value: 11, label: 'Decembrie' }
+    { value: 8, label: 'September' },
+    { value: 9, label: 'October' },
+    { value: 10, label: 'November' },
+    { value: 11, label: 'December' }
 ];
 
 function StatsPage() {
@@ -205,7 +205,7 @@ function StatsPage() {
         if (activePeriod === 'week') {
             return (
                 <div className="period-dropdowns-container">
-                    <span className="period-week-prefix">Săptămâna cu 1</span>
+                    <span className="period-week-prefix">Week of the 1st of</span>
                     <select
                         className="period-dropdown-select"
                         value={now.getMonth()}
@@ -241,7 +241,7 @@ function StatsPage() {
             return (
                 <div className="period-dropdowns-container">
                     <span className="period-month-name">
-                        {now.toLocaleDateString('ro-RO', { month: 'long' })}
+                        {now.toLocaleDateString('en-US', { month: 'long' })}
                     </span>
                     <select
                         className="period-dropdown-select"
@@ -379,7 +379,7 @@ function StatsPage() {
             {activePeriod === 'custom' && (
                 <div className="custom-range-picker-container">
                     <div className="picker-input-group">
-                        <label htmlFor="custom-start-date">De la:</label>
+                        <label htmlFor="custom-start-date">From:</label>
                         <input 
                             type="date" 
                             id="custom-start-date"
@@ -389,7 +389,7 @@ function StatsPage() {
                         />
                     </div>
                     <div className="picker-input-group">
-                        <label htmlFor="custom-end-date">Până la:</label>
+                        <label htmlFor="custom-end-date">To:</label>
                         <input 
                             type="date" 
                             id="custom-end-date"
@@ -400,6 +400,52 @@ function StatsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Weekday bar chart */}
+            <div className="weekday-activity-section">
+                <div className="clocks-title-row">
+                    <h4>Streams by day of the week</h4>
+                </div>
+
+                <div className="weekday-navigation">
+                    <button 
+                        className="nav-arrow" 
+                        onClick={handlePrev} 
+                        disabled={isOldestPeriod}
+                        title="Previous period"
+                    >
+                        &lt;
+                    </button>
+                    <span className="active-period-name">{renderActivePeriodLabel()}</span>
+                    <button 
+                        className="nav-arrow" 
+                        onClick={handleNext} 
+                        disabled={isLatestPeriod}
+                        title="Next period"
+                    >
+                        &gt;
+                    </button>
+                </div>
+
+                <div className="weekday-bar-chart">
+                    {weekdayPlays.map((plays, idx) => {
+                        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                        const heightPercent = Math.max(10, (plays / maxWeekdayPlays) * 80)
+                        return (
+                            <div className="weekday-bar-column" key={`weekday-${idx}`}>
+                                <span className="weekday-play-count">{plays.toLocaleString()}</span>
+                                <div className="weekday-bar-track">
+                                    <div 
+                                        className="weekday-bar-fill" 
+                                        style={{ height: `${heightPercent}%` }}
+                                    />
+                                </div>
+                                <span className="weekday-name-label">{labels[idx]}</span>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
 
             {/* Grid of stats cards with percentage trends */}
             <div className="stats-cards-grid">
@@ -533,51 +579,7 @@ function StatsPage() {
                 </div>
             </div>
 
-            {/* Weekday bar chart */}
-            <div className="weekday-activity-section">
-                <div className="clocks-title-row">
-                    <h4>Streams by day of the week</h4>
-                </div>
 
-                <div className="weekday-navigation">
-                    <button 
-                        className="nav-arrow" 
-                        onClick={handlePrev} 
-                        disabled={isOldestPeriod}
-                        title="Previous period"
-                    >
-                        &lt;
-                    </button>
-                    <span className="active-period-name">{renderActivePeriodLabel()}</span>
-                    <button 
-                        className="nav-arrow" 
-                        onClick={handleNext} 
-                        disabled={isLatestPeriod}
-                        title="Next period"
-                    >
-                        &gt;
-                    </button>
-                </div>
-
-                <div className="weekday-bar-chart">
-                    {weekdayPlays.map((plays, idx) => {
-                        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-                        const heightPercent = Math.max(10, (plays / maxWeekdayPlays) * 80)
-                        return (
-                            <div className="weekday-bar-column" key={`weekday-${idx}`}>
-                                <span className="weekday-play-count">{plays.toLocaleString()}</span>
-                                <div className="weekday-bar-track">
-                                    <div 
-                                        className="weekday-bar-fill" 
-                                        style={{ height: `${heightPercent}%` }}
-                                    />
-                                </div>
-                                <span className="weekday-name-label">{labels[idx]}</span>
-                            </div>
-                        )
-                    })}
-                </div>
-            </div>
         </div>
     )
 }

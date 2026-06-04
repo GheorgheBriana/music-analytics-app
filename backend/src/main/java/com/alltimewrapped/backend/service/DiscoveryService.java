@@ -33,7 +33,7 @@ public class DiscoveryService {
                 """, userId);
 
         if (genreRows.isEmpty()) {
-            return new DiscoveryResponse(List.of(), "Nu avem suficiente date pentru a crea recomandări personalizate. Importă mai multe audiții.");
+            return new DiscoveryResponse(List.of(), "We do not have enough data to create personalized recommendations. Please import more listening history.");
         }
 
         // List of user genres sorted descending
@@ -71,12 +71,12 @@ public class DiscoveryService {
             recommendations.addAll(fallbackItems);
             
             if (recommendations.isEmpty()) {
-                fallbackMessage = "Gusturile tale sunt unice! Nu am putut genera recomandări prin colaborare socială, așa că îți propunem să explorezi artiști din genurile tale favorite.";
+                fallbackMessage = "Your tastes are unique! We could not generate social collaborative recommendations, so we suggest exploring artists in your favorite genres.";
                 // Last ditch effort: populate using top genres directly
                 List<DiscoveryRecommendation> emergencyItems = runEmergencyFallback(activeLevel, sortedGenres, listenedArtists, recommendations);
                 recommendations.addAll(emergencyItems);
             } else {
-                fallbackMessage = "Pentru că ești printre primii utilizatori ai comunității, recomandările se bazează pe evoluția proprie a gustului tău din Evolution.";
+                fallbackMessage = "Since you are among the first users in the community, recommendations are based on your personal taste trajectory from Evolution.";
             }
         }
 
@@ -145,9 +145,9 @@ public class DiscoveryService {
                 // Match with level constraints
                 boolean levelMatch = matchesLevel(level, genre, targetGenres);
                 if (levelMatch) {
-                    String simpleReason = "Recomandat pe baza profilului tău social.";
+                    String simpleReason = "Recommended based on your social profile.";
                     String detailedReason = String.format(
-                            "Un utilizator cu gusturi similare (%.0f%% potrivire pe genuri) ascultă intens acest artist. Nivel: %s.",
+                            "A user with similar tastes (%.0f%% genre match) listens heavily to this artist. Level: %s.",
                             similarityScore * 100, level
                     );
                     recs.add(new DiscoveryRecommendation(artist, genre, level, simpleReason, detailedReason));
@@ -209,9 +209,9 @@ public class DiscoveryService {
                 String cleaned = artist.toLowerCase().trim();
 
                 if (!listenedArtists.contains(cleaned) && !alreadyRecommended.contains(cleaned)) {
-                    String simpleReason = "Descoperit prin evoluția gusturilor tale.";
+                    String simpleReason = "Discovered through your taste evolution.";
                     String detailedReason = String.format(
-                            "Aparține genului %s, care este în plină ascensiune în istoricul tău recent (panta m = %.3f). Nivel: %s.",
+                            "Belongs to the genre %s, which is growing in your recent history (slope m = %.3f). Level: %s.",
                             genre, gp.slope(), level
                     );
                     fallbackRecs.add(new DiscoveryRecommendation(artist, genre, level, simpleReason, detailedReason));
@@ -270,9 +270,9 @@ public class DiscoveryService {
                 String cleaned = artist.toLowerCase().trim();
 
                 if (!listenedArtists.contains(cleaned) && !alreadyRecommended.contains(cleaned)) {
-                    String simpleReason = String.format("Recomandare bazată pe genul %s.", genre);
+                    String simpleReason = String.format("Recommendation based on the %s genre.", genre);
                     String detailedReason = String.format(
-                            "Îți sugerăm acest artist din genul %s pentru a-ți explora biblioteca. Nivel: %s.",
+                            "We suggest this artist from the %s genre to explore your library. Level: %s.",
                             genre, level
                     );
                     emergencyRecs.add(new DiscoveryRecommendation(artist, genre, level, simpleReason, detailedReason));

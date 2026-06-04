@@ -13,16 +13,16 @@ import CalendarPage from './pages/app/CalendarPage'
 import MusicDnaPage from './pages/app/MusicDnaPage'
 import TasteEvolutionPage from './pages/app/TasteEvolutionPage'
 import SpotifyLivePage from './pages/app/SpotifyLivePage'
-import ProfileImportPage from './pages/app/ProfileImportPage'
+import ProfilePage from './pages/app/ProfilePage'
+import PublicProfilePage from './pages/app/PublicProfilePage'
+import ImportZipPage from './pages/app/ImportZipPage'
 import PredictionsPage from './pages/app/PredictionsPage'
 import SocialPage from './pages/app/SocialPage'
 import MOBDPage from './pages/app/MOBDPage'
 import StatsPage from './pages/app/StatsPage'
 import FriendsPage from './pages/app/FriendsPage'
-
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminPage from './pages/AdminPage'
-
 import UserRoute from './components/UserRoute'
 import AdminRoute from './components/AdminRoute'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -133,7 +133,9 @@ function App() {
                         <Route path="predictions" element={<PredictionsPage />} />
                         <Route path="social" element={<SocialPage />} />
                         <Route path="friends" element={<FriendsPage />} />
-                        <Route path="profile" element={<ProfileImportPage />} />
+                        <Route path="profile" element={<ProfilePage />} />
+                        <Route path="profile/:userId" element={<PublicProfilePage />} />
+                        <Route path="import" element={<ImportZipPage />} />
                     </Route>
 
                     {/* ADMIN routes — protected by AdminRoute */}
