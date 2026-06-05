@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import * as d3 from 'd3';
 import { getTasteEvolution } from '../../api/evolutionApi';
+import { Palette, Heart, Anchor, Flame, Zap, Shield, Compass, TrendingUp, Moon, Music } from 'lucide-react';
 
 // Custom StreamGraph using native D3 stacking and drawing
 function StreamGraph({ streams, months, colorScale }) {
@@ -228,6 +229,12 @@ function VolatilityChart({ volatility, months }) {
     return (
         <div style={{ width: '100%', overflowX: 'auto' }}>
             <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block', minWidth: '600px' }}>
+                <defs>
+                    <linearGradient id="volatilityGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#1DB954" />
+                        <stop offset="100%" stopColor="#8b5cf6" />
+                    </linearGradient>
+                </defs>
                 {/* Horizontal grid lines */}
                 {[0, 0.25, 0.5, 0.75, 1.0].map((val, idx) => {
                     const y = padding.top + chartHeight - (val / maxDistance) * chartHeight;
@@ -289,11 +296,10 @@ function VolatilityChart({ volatility, months }) {
                     <path 
                         d={pathD} 
                         fill="none" 
-                        stroke="linear-gradient(90deg, #1DB954 0%, #8b5cf6 100%)" 
+                        stroke="url(#volatilityGradient)" 
                         strokeWidth={3} 
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        style={{ stroke: '#1DB954' }}
                     />
                 )}
 
@@ -311,8 +317,8 @@ function VolatilityChart({ volatility, months }) {
                                 strokeWidth={isTp ? 5 : 2}
                                 style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
                             />
-                            {/* Monthly ticks along the X axis */}
-                            {(idx % Math.max(1, Math.round(points.length / 8)) === 0 || isTp) && (
+                            {/* Monthly ticks along the X axis - spaced evenly to avoid collision */}
+                            {(idx % Math.max(1, Math.round(points.length / 6)) === 0) && (
                                 <g>
                                     <line 
                                         x1={p.x} 
@@ -324,9 +330,9 @@ function VolatilityChart({ volatility, months }) {
                                     <text 
                                         x={p.x} 
                                         y={padding.top + chartHeight + 18} 
-                                        fill={isTp ? '#ef4444' : '#aeb3c5'} 
+                                        fill="#aeb3c5" 
                                         fontSize={10} 
-                                        fontWeight={isTp ? 'bold' : 'normal'}
+                                        fontWeight="normal"
                                         textAnchor="middle"
                                         fontFamily="'Outfit', sans-serif"
                                     >
@@ -382,27 +388,27 @@ function getGenreColor(genreName) {
 const getCardMeta = (type) => {
     switch (type) {
         case 'MOST_DIVERSE_YEAR':
-            return { icon: '🎨', title: 'Most Diverse Year', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.2)' };
+            return { icon: <Palette size={20} color="#3b82f6" />, title: 'Most Diverse Year', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.15)' };
         case 'MOST_LOYAL_YEAR':
-            return { icon: '🤝', title: 'Most Loyal Year', color: '#10b981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)' };
+            return { icon: <Heart size={20} color="#10b981" />, title: 'Most Loyal Year', color: '#10b981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.15)' };
         case 'ANCHOR_GENRE':
-            return { icon: '⚓', title: 'Anchor Genre', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.08)', border: 'rgba(6, 182, 212, 0.2)' };
+            return { icon: <Anchor size={20} color="#06b6d4" />, title: 'Anchor Genre', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.08)', border: 'rgba(6, 182, 212, 0.15)' };
         case 'METEOR_GENRE':
-            return { icon: '☄️', title: 'Meteor Genre', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)' };
+            return { icon: <Flame size={20} color="#f59e0b" />, title: 'Meteor Genre', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.15)' };
         case 'TURNING_POINT':
-            return { icon: '⚡', title: 'Turning Point', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.2)' };
+            return { icon: <Zap size={20} color="#ef4444" />, title: 'Turning Point', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.15)' };
         case 'MOST_STABLE_YEAR':
-            return { icon: '🛡️', title: 'Most Stable Year', color: '#14b8a6', bg: 'rgba(20, 184, 166, 0.08)', border: 'rgba(20, 184, 166, 0.2)' };
+            return { icon: <Shield size={20} color="#14b8a6" />, title: 'Most Stable Year', color: '#14b8a6', bg: 'rgba(20, 184, 166, 0.08)', border: 'rgba(20, 184, 166, 0.15)' };
         case 'MOST_EXPLORATORY_YEAR':
-            return { icon: '🧭', title: 'Most Exploratory Year', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.2)' };
+            return { icon: <Compass size={20} color="#8b5cf6" />, title: 'Most Exploratory Year', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.15)' };
         case 'FUTURE_DIRECTION':
-            return { icon: '🔮', title: 'Future Direction', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.08)', border: 'rgba(236, 72, 153, 0.2)' };
+            return { icon: <TrendingUp size={20} color="#ec4899" />, title: 'Future Direction', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.08)', border: 'rgba(236, 72, 153, 0.15)' };
         case 'NOCTURNAL_GENRE':
-            return { icon: '🌙', title: 'Nocturnal Genre', color: '#818cf8', bg: 'rgba(129, 140, 248, 0.08)', border: 'rgba(129, 140, 248, 0.2)' };
+            return { icon: <Moon size={20} color="#818cf8" />, title: 'Nocturnal Genre', color: '#818cf8', bg: 'rgba(129, 140, 248, 0.08)', border: 'rgba(129, 140, 248, 0.15)' };
         case 'RED_THREAD_TRACK':
-            return { icon: '🧵', title: 'Red Thread Track', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.08)', border: 'rgba(244, 63, 94, 0.2)' };
+            return { icon: <Music size={20} color="#f43f5e" />, title: 'Red Thread Track', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.08)', border: 'rgba(244, 63, 94, 0.15)' };
         default:
-            return { icon: '🎵', title: 'My Music', color: '#1DB954', bg: 'rgba(29, 185, 84, 0.08)', border: 'rgba(29, 185, 84, 0.2)' };
+            return { icon: <Music size={20} color="#1DB954" />, title: 'My Music', color: '#1DB954', bg: 'rgba(29, 185, 84, 0.08)', border: 'rgba(29, 185, 84, 0.15)' };
     }
 };
 
@@ -410,6 +416,7 @@ function TasteEvolutionPage() {
     const [evolution, setEvolution] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [showAllProjections, setShowAllProjections] = useState(false);
 
     const activeUserId = localStorage.getItem('userId');
 
@@ -560,23 +567,8 @@ function TasteEvolutionPage() {
                                     e.currentTarget.style.boxShadow = 'none';
                                 }}
                             >
-                                {/* Background glow accent */}
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '-20px',
-                                    right: '-20px',
-                                    width: '80px',
-                                    height: '80px',
-                                    borderRadius: '50%',
-                                    background: meta.color,
-                                    filter: 'blur(35px)',
-                                    opacity: 0.1,
-                                    pointerEvents: 'none'
-                                }} />
-
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <span style={{ 
-                                        fontSize: '20px', 
                                         width: '40px', 
                                         height: '40px', 
                                         borderRadius: '12px',
@@ -592,7 +584,7 @@ function TasteEvolutionPage() {
                                         {meta.title}
                                     </strong>
                                 </div>
-
+ 
                                 <div>
                                     <div style={{ fontSize: '26px', fontWeight: '800', color: '#fff', fontFamily: "'Outfit', sans-serif", marginBottom: '8px' }}>
                                         {card.value}
@@ -608,42 +600,94 @@ function TasteEvolutionPage() {
             </div>
 
             {/* GENRE PROJECTIONS PANEL */}
-            {evolution.projections && evolution.projections.length > 0 && (
-                <div className="all-time-panel" style={{ padding: '24px', borderRadius: '24px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                    <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Growth Directions & Projections (Weighted Linear Regression - WLS)</h3>
-                    <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#a8a8b8' }}>
-                        Genres with a positive growth slope (m &gt; 0) over the last 6 months, calculated using the exponential weighted regression model (Weighted Least Squares - WLS) that prioritizes recent plays. This set is the basis for the Discovery algorithm (content-based fallback).
-                    </p>
+            {(() => {
+                const filteredProjections = (evolution.projections || [])
+                    .filter(p => {
+                        const name = p.genreName.toLowerCase();
+                        return !name.includes('unknown') && 
+                               !name.includes('special purpose') && 
+                               !name.includes('audiobook') && 
+                               !name.includes('composer') && 
+                               !name.includes('score') && 
+                               !name.includes('soundtrack') && 
+                               !name.includes('noise') && 
+                               p.rSquared >= 0.1;
+                    });
+                
+                const displayedProjections = showAllProjections 
+                    ? filteredProjections 
+                    : filteredProjections.slice(0, 6);
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
-                        {evolution.projections.map((p, idx) => (
-                            <div key={idx} style={{ padding: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontWeight: 'bold', color: '#fff', fontSize: '14px' }}>{p.genreName}</span>
-                                    <span style={{ 
-                                        fontSize: '10px', 
-                                        fontWeight: '800', 
-                                        padding: '2px 6px', 
-                                        borderRadius: '6px', 
-                                        background: p.confidenceLabel === 'HIGH' ? 'rgba(29, 185, 84, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                                        color: p.confidenceLabel === 'HIGH' ? '#1db954' : '#f59e0b'
-                                    }}>
-                                        {p.confidenceLabel}
-                                    </span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                    <span style={{ fontSize: '11px', color: '#aeb3c5' }}>Slope (m)</span>
-                                    <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#1db954' }}>+{p.slope.toFixed(3)} plays/month</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                    <span style={{ fontSize: '11px', color: '#aeb3c5' }}>R² Coefficient</span>
-                                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff' }}>{p.rSquared.toFixed(3)}</span>
-                                </div>
+                if (filteredProjections.length === 0) return null;
+
+                return (
+                    <div className="all-time-panel" style={{ padding: '24px', borderRadius: '24px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                        <h3 style={{ margin: '0 0 6px', fontFamily: "'Outfit', sans-serif" }}>Growth Directions & Projections</h3>
+                        <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#a8a8b8' }}>
+                            Genres with a positive growth slope (m &gt; 0) over the last 6 months, calculated using the exponentially weighted regression model (WLS) that prioritizes recent plays. This set is the basis for the Discovery algorithm.
+                        </p>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
+                            {displayedProjections.map((p, idx) => {
+                                const confColor = p.confidenceLabel === 'HIGH' ? '#1db954' : p.confidenceLabel === 'MEDIUM' ? '#f59e0b' : '#9ca3af';
+                                const confBg = p.confidenceLabel === 'HIGH' ? 'rgba(29, 185, 84, 0.1)' : p.confidenceLabel === 'MEDIUM' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(156, 163, 175, 0.1)';
+                                return (
+                                    <div key={idx} style={{ padding: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontWeight: 'bold', color: '#fff', fontSize: '14px' }}>{p.genreName}</span>
+                                            <span style={{ 
+                                                fontSize: '10px', 
+                                                fontWeight: '800', 
+                                                padding: '2px 6px', 
+                                                borderRadius: '6px', 
+                                                background: confBg,
+                                                color: confColor
+                                            }}>
+                                                {p.confidenceLabel}
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                            <span style={{ fontSize: '11px', color: '#aeb3c5' }}>Slope (m)</span>
+                                            <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#1db954' }}>+{p.slope.toFixed(3)} plays/month</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                            <span style={{ fontSize: '11px', color: '#aeb3c5' }}>R² Coefficient</span>
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff' }}>{p.rSquared.toFixed(3)}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {filteredProjections.length > 6 && (
+                            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                                <button 
+                                    onClick={() => setShowAllProjections(!showAllProjections)}
+                                    style={{
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                                        color: '#fff',
+                                        padding: '8px 16px',
+                                        borderRadius: '12px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                    }}
+                                >
+                                    {showAllProjections ? 'Show Less Projections' : `Show All Projections (${filteredProjections.length})`}
+                                </button>
                             </div>
-                        ))}
+                        )}
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }

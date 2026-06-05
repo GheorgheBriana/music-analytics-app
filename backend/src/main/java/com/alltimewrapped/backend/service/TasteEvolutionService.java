@@ -54,8 +54,8 @@ public class TasteEvolutionService {
         if (monthlyVectors.size() < MIN_MONTHS) {
             return new EvolutionResponse(
                 false,
-                "Evoluția gusturilor muzicale necesită cel puțin " + MIN_MONTHS + " luni de istoric în depozitul de date. " +
-                "Momentan ai " + monthlyVectors.size() + " luni sincronizate.",
+                "Your music taste evolution analysis requires at least " + MIN_MONTHS + " months of history in the warehouse. " +
+                "Currently you have " + monthlyVectors.size() + " months synchronized.",
                 monthlyVectors.size(),
                 null,
                 null,
@@ -192,6 +192,7 @@ public class TasteEvolutionService {
         }
 
         List<String> topGenres = genreTotals.entrySet().stream()
+                .filter(entry -> !entry.getKey().equalsIgnoreCase("unknown"))
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                 .limit(TOP_GENRES_FOR_STREAM)
                 .map(Map.Entry::getKey)
@@ -217,7 +218,7 @@ public class TasteEvolutionService {
 
         boolean hasOther = otherSeries.stream().anyMatch(v -> v > 0);
         if (hasOther) {
-            streams.add(new GenreStream("Altele", otherSeries));
+            streams.add(new GenreStream("Other", otherSeries));
         }
 
         return streams;
@@ -503,11 +504,13 @@ public class TasteEvolutionService {
             distByYear.merge(year, s.distance(), Double::sum);
             countByYear.merge(year, 1, Integer::sum);
         }
-        Map<String, Double> avgByYear = new TreeMap<>();
+        Map<String, Double> avgByYear = new HashMap<>();
         for (String y : distByYear.keySet()) {
-            avgByYear.put(y, distByYear.get(y) / countByYear.get(y));
+            if (countByYear.get(y) >= 6) { // Ensure at least 6 months of data to avoid partial year artifacts
+                avgByYear.put(y, distByYear.get(y) / countByYear.get(y));
+            }
         }
-        if (avgByYear.size() < 2) return;
+        if (avgByYear.size() < 1) return; // If we only have 1 valid full year, we can't compare, but still return without error
 
         avgByYear.entrySet().stream().min(Map.Entry.comparingByValue())
                 .ifPresent(e -> cards.add(new StoryCard(
