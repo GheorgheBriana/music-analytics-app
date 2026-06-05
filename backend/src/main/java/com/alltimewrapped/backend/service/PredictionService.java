@@ -232,7 +232,7 @@ public class PredictionService {
             labels[i] = year + "-" + String.format("%02d", month);
         }
 
-        // Least squares regression
+        // Fit simple linear regression as baseline and fallback
         double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
         for (int i = 0; i < n; i++) {
             sumX += x[i]; sumY += y[i];
@@ -242,30 +242,79 @@ public class PredictionService {
         double intercept = (sumY - slope * sumX) / n;
         double meanY = sumY / n;
 
-        // R² coefficient
+        double[] fittedY = new double[n];
+        double[] projY = new double[n + 3];
+        for (int i = 0; i < n; i++) {
+            fittedY[i] = slope * i + intercept;
+            projY[i] = y[i];
+        }
+
+        boolean usedSarima = false;
+        double[] beta = null;
+
+        // SARIMA requires at least 18 months for stable 4-parameter OLS estimation (lag 13)
+        if (n >= 18) {
+            double[][] xtx = new double[4][4];
+            double[] xty = new double[4];
+            for (int i = 13; i < n; i++) {
+                double[] row = {1.0, y[i - 1], y[i - 12], y[i - 13]};
+                double val = y[i];
+                for (int r = 0; r < 4; r++) {
+                    for (int c = 0; c < 4; c++) {
+                        xtx[r][c] += row[r] * row[c];
+                    }
+                    xty[r] += row[r] * val;
+                }
+            }
+
+            beta = solveLinearSystem(xtx, xty);
+            if (beta != null) {
+                usedSarima = true;
+                // Apply SARIMA fit for points t >= 13
+                for (int i = 13; i < n; i++) {
+                    fittedY[i] = Math.max(0, beta[0] + beta[1] * y[i - 1] + beta[2] * y[i - 12] + beta[3] * y[i - 13]);
+                }
+                
+                // Forecast next 3 months recursively using the fitted SARIMA coefficients
+                int[] lastYM = parseYM(labels[n - 1]);
+                for (int k = 1; k <= 3; k++) {
+                    int i = n - 1 + k;
+                    double yProjVal = beta[0] + beta[1] * projY[i - 1] + beta[2] * projY[i - 12] + beta[3] * projY[i - 13];
+                    projY[i] = Math.max(0, yProjVal);
+                }
+            }
+        }
+
+        if (!usedSarima) {
+            // Linear regression projection fallback
+            int[] lastYM = parseYM(labels[n - 1]);
+            for (int k = 1; k <= 3; k++) {
+                double xNew = n - 1 + k;
+                projY[n - 1 + k] = Math.max(0, slope * xNew + intercept);
+            }
+        }
+
+        // R² coefficient based on actual fit vs actual observations
         double ssRes = 0, ssTot = 0;
         for (int i = 0; i < n; i++) {
-            double yHat = slope * x[i] + intercept;
-            ssRes += Math.pow(y[i] - yHat, 2);
+            ssRes += Math.pow(y[i] - fittedY[i], 2);
             ssTot += Math.pow(y[i] - meanY, 2);
         }
         double rSquared = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
 
-        // Historical series with fitted line
+        // Historical series with fitted values
         List<TrendPoint> historical = new ArrayList<>();
         for (int i = 0; i < n; i++) {
-            historical.add(new TrendPoint(labels[i], y[i], slope * x[i] + intercept));
+            historical.add(new TrendPoint(labels[i], y[i], fittedY[i]));
         }
 
         // Projected 3 months forward
         List<TrendPoint> projected = new ArrayList<>();
         int[] lastYM = parseYM(labels[n - 1]);
         for (int k = 1; k <= 3; k++) {
-            double xNew = n - 1 + k;
-            double yProj = Math.max(0, slope * xNew + intercept);
             int[] nextYM = addMonths(lastYM, k);
             projected.add(new TrendPoint(
-                nextYM[0] + "-" + String.format("%02d", nextYM[1]), -1, yProj));
+                nextYM[0] + "-" + String.format("%02d", nextYM[1]), -1, projY[n - 1 + k]));
         }
 
         // Direction classification (relative to mean)
@@ -493,6 +542,42 @@ public class PredictionService {
     private int[] addMonths(int[] ym, int months) {
         int total = ym[0] * 12 + (ym[1] - 1) + months;
         return new int[]{total / 12, total % 12 + 1};
+    }
+
+    private static double[] solveLinearSystem(double[][] A, double[] B) {
+        int n = B.length;
+        for (int p = 0; p < n; p++) {
+            int max = p;
+            for (int i = p + 1; i < n; i++) {
+                if (Math.abs(A[i][p]) > Math.abs(A[max][p])) {
+                    max = i;
+                }
+            }
+            double[] temp = A[p]; A[p] = A[max]; A[max] = temp;
+            double t = B[p]; B[p] = B[max]; B[max] = t;
+
+            if (Math.abs(A[p][p]) <= 1e-10) {
+                return null;
+            }
+
+            for (int i = p + 1; i < n; i++) {
+                double alpha = A[i][p] / A[p][p];
+                B[i] -= alpha * B[p];
+                for (int j = p; j < n; j++) {
+                    A[i][j] -= alpha * A[p][j];
+                }
+            }
+        }
+
+        double[] x = new double[n];
+        for (int i = n - 1; i >= 0; i--) {
+            double sum = 0.0;
+            for (int j = i + 1; j < n; j++) {
+                sum += A[i][j] * x[j];
+            }
+            x[i] = (B[i] - sum) / A[i][i];
+        }
+        return x;
     }
 
     private PredictionResponse emptyResponse() {
