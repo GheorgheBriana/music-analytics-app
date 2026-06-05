@@ -13,12 +13,14 @@ function StreamGraph({ streams, months, colorScale }) {
         svg.selectAll('*').remove();
 
         const margin = { top: 20, right: 30, bottom: 40, left: 30 };
-        const width = svgRef.current.parentElement.clientWidth || 800;
+        const width = 1000;
         const height = 400;
 
-        svg.attr('width', '100%')
-           .attr('height', height)
-           .attr('viewBox', `0 0 ${width} ${height}`);
+        svg.attr('viewBox', `0 0 ${width} ${height}`)
+           .style('width', '100%')
+           .style('height', 'auto')
+           .style('aspect-ratio', '1000 / 400')
+           .style('display', 'block');
 
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
