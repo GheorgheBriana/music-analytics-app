@@ -3,6 +3,7 @@ package com.alltimewrapped.backend.service;
 import com.alltimewrapped.backend.dto.*;
 import com.alltimewrapped.backend.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PredictionService {
 
     private final AppUserRepository appUserRepository;
@@ -76,10 +78,17 @@ public class PredictionService {
         String topMonth = argmax(monthProbs, "No data yet");
         Double changePercent = calculateChangePercent(userId);
 
+        String overallTrend = "STABLE";
+        if (changePercent > 5.0) {
+            overallTrend = "INCREASING";
+        } else if (changePercent < -5.0) {
+            overallTrend = "DECREASING";
+        }
+
         return new PredictionResponse(
             topArtist, dayProbs, hourProbs, monthProbs,
             trend, forecast, anomalies, rising, fading,
-            topDay, topHour, topMonth, trend.direction(), changePercent
+            topDay, topHour, topMonth, overallTrend, changePercent
         );
     }
 
@@ -427,23 +436,32 @@ public class PredictionService {
     // ====================================================================
     private Double calculateChangePercent(Long userId) {
         try {
-            Map<String, Object> r = jdbcTemplate.queryForMap("""
-                    WITH years AS (
-                        SELECT DISTINCT year FROM dw.mv_monthly_listening
-                        WHERE original_user_id = ?
-                        ORDER BY year DESC LIMIT 2
-                    )
-                    SELECT
-                        COALESCE((SELECT SUM(total_plays) FROM dw.mv_monthly_listening
-                                  WHERE original_user_id = ? AND year = (SELECT MAX(year) FROM years)), 0)::DOUBLE PRECISION AS latest,
-                        COALESCE((SELECT SUM(total_plays) FROM dw.mv_monthly_listening
-                                  WHERE original_user_id = ? AND year = (SELECT MIN(year) FROM years)), 0)::DOUBLE PRECISION AS previous
-                    """, userId, userId, userId);
-            double latest = ((Number) r.get("latest")).doubleValue();
-            double previous = ((Number) r.get("previous")).doubleValue();
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                    SELECT total_plays 
+                    FROM dw.mv_monthly_listening
+                    WHERE original_user_id = ?
+                    ORDER BY year DESC, month DESC
+                    """, userId);
+            
+            if (rows.size() < 4) {
+                return 0.0;
+            }
+            
+            int half = Math.min(12, rows.size() / 2);
+            double latest = 0.0;
+            double previous = 0.0;
+            
+            for (int i = 0; i < half; i++) {
+                latest += ((Number) rows.get(i).get("total_plays")).doubleValue();
+            }
+            for (int i = half; i < 2 * half; i++) {
+                previous += ((Number) rows.get(i).get("total_plays")).doubleValue();
+            }
+            
             if (previous == 0) return 0.0;
             return Math.round(((latest - previous) / previous) * 10000.0) / 100.0;
         } catch (Exception e) {
+            log.error("Failed to calculate change percent: " + e.getMessage());
             return 0.0;
         }
     }

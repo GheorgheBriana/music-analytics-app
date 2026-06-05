@@ -125,6 +125,13 @@ Generated with All-Time Wrapped.`
     const trendLabel = getTrendLabel(predictions.listeningTrend)
     const changePercent = predictions.listeningChangePercent ?? 0
 
+    // Compute weekly distribution spread to detect uniform distribution
+    const dayProbs = predictions.dayOfWeekProbabilities || {}
+    const dayProbValues = Object.values(dayProbs)
+    const maxDayProb = dayProbValues.length > 0 ? Math.max(...dayProbValues) : 0
+    const minDayProb = dayProbValues.length > 0 ? Math.min(...dayProbValues) : 0
+    const isUniformDays = dayProbValues.length > 0 && (maxDayProb - minDayProb) < 0.05
+
     return (
         <div className="all-time-section" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div className="all-time-header">
@@ -134,7 +141,7 @@ Generated with All-Time Wrapped.`
                         Advanced statistical predictions generated from your imported listening history in the Data Warehouse.
                     </p>
                     <p className="period-label">
-                        Based on historical linear regressions, PMFs, and Z-score anomaly models.
+                        Based on historical trend forecasting, activity patterns, and outlier detection models.
                     </p>
                 </div>
 
@@ -150,22 +157,22 @@ Generated with All-Time Wrapped.`
                     <strong>{predictions.predictedTopArtist.name}</strong>
                     <div 
                         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}
-                        title="Calculated probability that this artist will remain your top artist, prioritizing your most recent listens."
+                        title="Proportion of this artist in your recent decay-weighted history. Low values are typical for diverse listeners."
                     >
                         <span style={{ fontSize: '11px', color: '#a8a8b8', borderBottom: '1px dotted #a8a8b8', cursor: 'help' }}>
-                            Prediction confidence
+                            Recent listening cota
                         </span>
                         <span style={{ 
                             fontSize: '11px', 
                             fontWeight: 'bold', 
-                            color: predictions.predictedTopArtist.confidenceLabel === 'HIGH' ? '#1db954' : predictions.predictedTopArtist.confidenceLabel === 'MEDIUM' ? '#ffc107' : '#ff4d6d' 
+                            color: predictions.predictedTopArtist.confidenceLabel === 'HIGH' ? '#1db954' : predictions.predictedTopArtist.confidenceLabel === 'MEDIUM' ? '#ffc107' : '#a78bfa' 
                         }}>
                             {(predictions.predictedTopArtist.confidence * 100).toFixed(1)}% ({
                                 predictions.predictedTopArtist.confidenceLabel === 'HIGH' 
-                                    ? 'High' 
+                                    ? 'Strong Dominance' 
                                     : predictions.predictedTopArtist.confidenceLabel === 'MEDIUM' 
-                                        ? 'Medium' 
-                                        : 'Low'
+                                        ? 'Moderate Dominance' 
+                                        : 'Balanced Rotation'
                             })
                         </span>
                     </div>
@@ -175,7 +182,10 @@ Generated with All-Time Wrapped.`
                     <span>Most likely listening day</span>
                     <strong>{predictions.mostActiveDayOfWeek}</strong>
                     <small style={{ color: '#a8a8b8', fontSize: '12px' }}>
-                        Predicted from your weekly listening pattern
+                        {isUniformDays 
+                            ? 'Balanced weekly pattern (uniform distribution)' 
+                            : 'Predicted from your weekly listening pattern'
+                        }
                     </small>
                 </div>
 
@@ -201,9 +211,9 @@ Generated with All-Time Wrapped.`
                 <div className="all-time-panel" style={{ padding: '24px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
                         <div>
-                            <h3 style={{ margin: 0 }}>Listening Evolution & Linear Regression</h3>
+                            <h3 style={{ margin: 0 }}>Listening Volume Evolution</h3>
                             <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#a8a8b8' }}>
-                                Least-squares regression fitted on monthly play counts. Solid line = actual, dashed = 3-month projection.
+                                Fitted trend line on monthly play counts. Solid line = actual, dashed = 3-month projection.
                             </p>
                         </div>
                         <span style={{
@@ -241,9 +251,16 @@ Generated with All-Time Wrapped.`
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
+
+                    {predictions.trend.rSquared < 0.15 && (
+                        <div style={{ marginTop: '16px', padding: '12px 16px', background: 'rgba(255, 77, 109, 0.08)', border: '1px solid rgba(255, 77, 109, 0.15)', borderRadius: '12px', color: '#ff4d6d', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span>⚠️</span>
+                            <span><strong>Low Predictability (R² = {predictions.trend.rSquared.toFixed(3)}):</strong> High historical variability in your listening volume. The linear trend line represents a macro average rather than a precise seasonal forecast.</span>
+                        </div>
+                    )}
                 </div>
             )}
-
+ 
             {/* FORECAST NEXT MONTH */}
             {predictions.nextMonthForecast && predictions.nextMonthForecast.predictedPlays > 0 && (
                 <div className="all-time-panel" style={{ padding: '24px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -255,20 +272,21 @@ Generated with All-Time Wrapped.`
                         <span style={{ color: '#a8a8b8', fontSize: '14px', fontWeight: 'bold' }}>predicted plays</span>
                     </div>
                     <p style={{ margin: 0, color: '#c7c7d1', fontSize: '14px' }}>
-                        Calculated using the Standard Error of Estimate with a **95% Confidence Interval**:
+                        Predicted range based on historical volatility with a <strong>95% Confidence Interval</strong>:
                     </p>
                     <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', width: 'fit-content', fontWeight: 'bold', fontSize: '15px' }}>
-                        🔓 {predictions.nextMonthForecast.lowerBound} – {predictions.nextMonthForecast.upperBound} plays
+                        Forecast interval: {predictions.nextMonthForecast.lowerBound} – {predictions.nextMonthForecast.upperBound} plays
                     </div>
                 </div>
             )}
 
             {/* PROBABILITY DISTRIBUTIONS GRID */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
                 {/* DAY OF WEEK PROBABILITY */}
                 {predictions.dayOfWeekProbabilities && Object.keys(predictions.dayOfWeekProbabilities).length > 0 && (
                     <div className="all-time-panel" style={{ padding: '20px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                        <h3 style={{ margin: '0 0 12px' }}>Day of Week Distribution (PMF)</h3>
+                        <h3 style={{ margin: '0 0 4px' }}>Day of Week Distribution</h3>
+                        <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#a8a8b8' }}>Probability distribution of your listening activity across the week.</p>
                         <div style={{ width: '100%', height: 200 }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={Object.entries(predictions.dayOfWeekProbabilities).map(([day, prob]) => ({ day, prob: prob * 100 }))} margin={{ left: -25 }}>
@@ -282,11 +300,12 @@ Generated with All-Time Wrapped.`
                         </div>
                     </div>
                 )}
-
+ 
                 {/* HOUR PROBABILITY */}
                 {predictions.hourProbabilities && Object.keys(predictions.hourProbabilities).length > 0 && (
                     <div className="all-time-panel" style={{ padding: '20px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                        <h3 style={{ margin: '0 0 12px' }}>Hour of Day Distribution (PMF)</h3>
+                        <h3 style={{ margin: '0 0 4px' }}>Hour of Day Distribution</h3>
+                        <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#a8a8b8' }}>Probability distribution of your listening activity across the 24-hour cycle.</p>
                         <div style={{ width: '100%', height: 200 }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={Object.entries(predictions.hourProbabilities).map(([hour, prob]) => ({ hour: `${hour}:00`, prob: prob * 100 }))} margin={{ left: -25 }}>
@@ -305,9 +324,9 @@ Generated with All-Time Wrapped.`
             {/* ANOMALIES DETECTED VIA Z-SCORE */}
             {predictions.anomalies && predictions.anomalies.length > 0 && (
                 <div className="all-time-panel" style={{ padding: '24px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                    <h3 style={{ margin: '0 0 4px' }}>Detected Activity Anomalies (Z-Score &gt; 2.0)</h3>
+                    <h3 style={{ margin: '0 0 4px' }}>Listening Activity Anomalies</h3>
                     <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#a8a8b8' }}>
-                        Months displaying statistically significant deviations (peaks or drops) from your standard historical listening volume.
+                        Months displaying statistically significant peaks or drops (Z-score deviation &gt; 2.0) compared to your historical averages.
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {predictions.anomalies.map((a, i) => (
@@ -346,9 +365,9 @@ Generated with All-Time Wrapped.`
             {((predictions.risingGenres && predictions.risingGenres.length > 0) || 
               (predictions.fadingGenres && predictions.fadingGenres.length > 0)) && (
                 <div className="all-time-panel" style={{ padding: '24px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                    <h3 style={{ margin: '0 0 4px' }}>Genre Trajectories (Least-Squares Regression per Category)</h3>
+                    <h3 style={{ margin: '0 0 4px' }}>Genre Trend Trajectories</h3>
                     <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#a8a8b8' }}>
-                        Multi-series slope calculations applied to individual genre listening histories to isolate emerging interests vs fading favorites.
+                        Rate of change in monthly plays per genre to isolate emerging interests vs fading favorites.
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                         <div>
@@ -403,21 +422,21 @@ Generated with All-Time Wrapped.`
                     <span style={{ fontSize: '48px', color: trendColor, lineHeight: 1 }}>{trendIcon}</span>
                     <div>
                         <strong style={{ fontSize: '20px', color: trendColor }}>
-                            Listening behavior is {trendLabel.toLowerCase()}
+                            Listening Trend: {trendLabel}
                         </strong>
                         <p style={{ margin: '6px 0 0', color: '#c7c7d1', fontSize: '15px' }}>
                             {changePercent === 0
                                 ? 'Your overall listening activity remains statistically steady compared to the previous recorded period.'
                                 : changePercent > 0
-                                    ? `You are listening ${Math.abs(changePercent)}% more than the previous comparable period. Your engagement with music is growing exponentially.`
-                                    : `You are listening ${Math.abs(changePercent)}% less than the previous comparable period.`
+                                    ? `You are listening ${Math.abs(changePercent)}% more than the previous comparable period, showing a rising engagement with music.`
+                                    : `You are listening ${Math.abs(changePercent)}% less than the previous comparable period, indicating a decrease in listening volume.`
                             }
                         </p>
                     </div>
                 </div>
                 <p style={{ margin: '8px 0 0 0', color: '#c7c7d1', fontSize: '14px', lineHeight: 1.5 }}>
-                    Your peak listening density usually concentrates on **{predictions.mostActiveDayOfWeek}s** around **{formatHour(predictions.mostActiveHour)}**, showing a stable habit. 
-                    Across your history, **{predictions.mostActiveMonth}** is your most active month, and your predicted top artist for the coming period is **{predictions.predictedTopArtist.name}**.
+                    Your peak listening density usually concentrates on <strong>{predictions.mostActiveDayOfWeek}s</strong> around <strong>{formatHour(predictions.mostActiveHour)}</strong>, showing a stable habit. 
+                    Across your history, <strong>{predictions.mostActiveMonth}</strong> is your most active month, and your predicted top artist for the coming period is <strong>{predictions.predictedTopArtist.name}</strong>.
                 </p>
             </div>
 
