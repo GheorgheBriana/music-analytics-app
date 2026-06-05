@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '../../contexts/AuthContext'
 
 function SpotifyLivePage() {
     const [topTracks, setTopTracks] = useState([])
@@ -10,10 +11,11 @@ function SpotifyLivePage() {
 
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
-
-    const activeUserId = localStorage.getItem('userId')
+   
+    const { user } = useAuth()
+    const activeUserId = user?.id || localStorage.getItem('userId')
     const authType = localStorage.getItem('authType')
-    const isSpotifyMode = authType === 'spotify'
+    const isSpotifyMode = authType === 'spotify' || (user?.spotifyUserId && user.spotifyUserId.trim() !== '')
 
     useEffect(() => {
         async function loadSpotifyLiveData() {
@@ -34,9 +36,9 @@ function SpotifyLivePage() {
                 setError('')
 
                 const [tracksResponse, artistsResponse, recentResponse] = await Promise.all([
-                    fetch(`http://127.0.0.1:8080/api/spotify-data/${activeUserId}/top-tracks?timeRange=${timeRange}`),
-                    fetch(`http://127.0.0.1:8080/api/spotify-data/${activeUserId}/top-artists?timeRange=${timeRange}`),
-                    fetch(`http://127.0.0.1:8080/api/spotify-data/${activeUserId}/recently-played`)
+                    fetch(`http://localhost:8080/api/spotify-data/${activeUserId}/top-tracks?timeRange=${timeRange}`),
+                    fetch(`http://localhost:8080/api/spotify-data/${activeUserId}/top-artists?timeRange=${timeRange}`),
+                    fetch(`http://localhost:8080/api/spotify-data/${activeUserId}/recently-played`)
                 ])
 
                 if (!tracksResponse.ok || !artistsResponse.ok || !recentResponse.ok) {

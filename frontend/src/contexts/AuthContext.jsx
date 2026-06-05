@@ -50,11 +50,16 @@ export function AuthProvider({ children }) {
         setUser(null);
     };
 
+    const refreshUser = async () => {
+        const userId = localStorage.getItem('userId');
+        if (userId) await loadCurrentUser(userId);
+    };
+
     const isAdmin = () => user?.role === 'ADMIN';
     const isUser = () => user?.role === 'USER';
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isUser }}>
+        <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, isAdmin, isUser }}>
             {children}
         </AuthContext.Provider>
     );

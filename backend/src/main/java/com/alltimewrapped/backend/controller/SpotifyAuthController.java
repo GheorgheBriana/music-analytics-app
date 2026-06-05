@@ -33,9 +33,12 @@ public class SpotifyAuthController {
 
     // Handles the callback received from Spotify after the user logs in
     @GetMapping("/callback")
-    public ResponseEntity<Void> handleSpotifyCallback(@RequestParam String code, jakarta.servlet.http.HttpServletRequest httpRequest) {
+    public ResponseEntity<Void> handleSpotifyCallback(
+            @RequestParam String code,
+            @RequestParam(value = "state", required = false) String state,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
         String ip = getClientIp(httpRequest);
-        AppUser user = spotifyAuthService.handleSpotifyCallback(code, ip);
+        AppUser user = spotifyAuthService.handleSpotifyCallback(code, state, ip);
 
         String redirectUrl = frontendRedirectUri + "?userId=" + user.getId();
 
@@ -43,6 +46,14 @@ public class SpotifyAuthController {
                 .status(302)
                 .location(URI.create(redirectUrl))
                 .build();
+    }
+
+    // Returns authorization URL for linking Spotify
+    @GetMapping("/link-url")
+    public ResponseEntity<java.util.Map<String, String>> getLinkUrl(
+            @RequestHeader("X-User-Id") Long userId) {
+        String url = spotifyAuthService.buildSpotifyLinkUrl(userId);
+        return ResponseEntity.ok(java.util.Map.of("url", url));
     }
 
     private String getClientIp(jakarta.servlet.http.HttpServletRequest request) {

@@ -661,23 +661,34 @@ public class AnalyticsRefreshService {
                     "SELECT genre_key FROM dw.dw_dim_genre WHERE LOWER(genre_name) = 'unknown'",
                     Integer.class
             );
-            if (unknownGenreKey == null) return 0;
+
+            if (unknownGenreKey == null) {
+                return 0;
+            }
 
             String sql = """
-                WITH resolvable AS (
+                WITH unknown_oltp_genre AS (
+                    SELECT id
+                    FROM oltp.genres
+                    WHERE LOWER(name) = 'unknown'
+                    LIMIT 1
+                ),
+                resolvable AS (
                     SELECT f.fact_id, dg.genre_key AS new_genre_key
                     FROM dw.dw_fact_listening_event f
                     JOIN oltp.listening_records lr ON f.original_listening_record_id = lr.id
                     JOIN oltp.tracks t ON t.id = lr.track_id
+                    CROSS JOIN unknown_oltp_genre ug
                     JOIN LATERAL (
                         SELECT tg.genre_id
                         FROM %s tg
                         WHERE tg.track_id = t.id
-                        ORDER BY (CASE WHEN tg.genre_id = 1 THEN 1 ELSE 0 END), tg.genre_id
+                        ORDER BY (CASE WHEN tg.genre_id = ug.id THEN 1 ELSE 0 END), tg.genre_id
                         LIMIT 1
                     ) pg ON true
                     JOIN dw.dw_dim_genre dg ON dg.original_genre_id = pg.genre_id
-                    WHERE f.genre_key = ? AND pg.genre_id != 1
+                    WHERE f.genre_key = ?
+                      AND pg.genre_id <> ug.id
                 )
                 UPDATE dw.dw_fact_listening_event f
                 SET genre_key = r.new_genre_key
@@ -825,7 +836,17 @@ public class AnalyticsRefreshService {
                     FROM %s tg
                     JOIN oltp.genres genre ON genre.id = tg.genre_id
                     WHERE tg.track_id = t.id
-                    ORDER BY (CASE WHEN genre.id = 1 THEN 1 ELSE 0 END), genre.id
+                    ORDER BY (
+                        CASE
+                            WHEN genre.id = (
+                                SELECT id
+                                FROM oltp.genres
+                                WHERE LOWER(name) = 'unknown'
+                                LIMIT 1
+                            ) THEN 1
+                            ELSE 0
+                        END
+                    ), genre.id
                     LIMIT 1
                 ) g ON true
                 ON CONFLICT (original_genre_id) DO NOTHING
@@ -993,7 +1014,17 @@ public class AnalyticsRefreshService {
                     FROM %s tg
                     JOIN oltp.genres genre ON genre.id = tg.genre_id
                     WHERE tg.track_id = t.id
-                    ORDER BY (CASE WHEN genre.id = 1 THEN 1 ELSE 0 END), genre.id
+                    ORDER BY (
+                        CASE
+                            WHEN genre.id = (
+                                SELECT id
+                                FROM oltp.genres
+                                WHERE LOWER(name) = 'unknown'
+                                LIMIT 1
+                            ) THEN 1
+                            ELSE 0
+                        END
+                    ), genre.id
                     LIMIT 1
                 ) primary_genre ON true
                 LEFT JOIN dw.dw_dim_genre dg
@@ -1031,7 +1062,17 @@ public class AnalyticsRefreshService {
                     FROM %s tg
                     JOIN oltp.genres genre ON genre.id = tg.genre_id
                     WHERE tg.track_id = t.id
-                    ORDER BY (CASE WHEN genre.id = 1 THEN 1 ELSE 0 END), genre.id
+                    ORDER BY (
+                        CASE
+                            WHEN genre.id = (
+                                SELECT id
+                                FROM oltp.genres
+                                WHERE LOWER(name) = 'unknown'
+                                LIMIT 1
+                            ) THEN 1
+                            ELSE 0
+                        END
+                    ), genre.id
                     LIMIT 1
                 ) primary_genre ON true
                 WHERE primary_artist.id IS NULL

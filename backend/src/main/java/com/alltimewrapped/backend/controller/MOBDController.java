@@ -12,7 +12,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/mobd")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class MOBDController {
 
     private final JdbcTemplate jdbcTemplate;

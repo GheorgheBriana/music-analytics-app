@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getUserStats } from '../api/statsApi'
 import ActivityHeatmap from '../components/ActivityHeatmap'
+import { useAuth } from '../contexts/AuthContext'
 import './SpotifyStatsPage.css'
 
 function SpotifyStatsPage({ userId, onBackClick }) {
@@ -29,10 +30,11 @@ function SpotifyStatsPage({ userId, onBackClick }) {
     const [statsPeriodLabel, setStatsPeriodLabel] = useState('All time')
     const [dateFilterError, setDateFilterError] = useState('')
 
-    const activeUserId = localStorage.getItem('userId') || userId
+    const { user } = useAuth()
+    const activeUserId = user?.id || localStorage.getItem('userId') || userId
 
     const authType = localStorage.getItem('authType')
-    const isSpotifyMode = authType === 'spotify'
+    const isSpotifyMode = authType === 'spotify' || (user?.spotifyUserId && user.spotifyUserId.trim() !== '')
 
     function formatMinutes(msPlayed) {
         return Math.round(msPlayed / 1000 / 60)

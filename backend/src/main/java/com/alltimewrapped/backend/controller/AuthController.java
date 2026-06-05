@@ -26,8 +26,9 @@ public class AuthController {
         return ResponseEntity.ok(Map.of(
                 "id", user.getId(),
                 "username", user.getUsername(),
-                "email", user.getEmail(),
-                "role", user.getRole().name()
+                "email", user.getEmail() != null ? user.getEmail() : "",
+                "role", user.getRole().name(),
+                "spotifyUserId", user.getSpotifyUserId() != null ? user.getSpotifyUserId() : ""
         ));
     }
 }

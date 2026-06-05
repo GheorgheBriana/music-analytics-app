@@ -1,12 +1,5 @@
 package com.alltimewrapped.backend.service;
 
-import com.alltimewrapped.backend.model.Album;
-import com.alltimewrapped.backend.model.Artist;
-import com.alltimewrapped.backend.model.Genre;
-import com.alltimewrapped.backend.model.Track;
-import com.alltimewrapped.backend.repository.AlbumRepository;
-import com.alltimewrapped.backend.repository.ArtistRepository;
-import com.alltimewrapped.backend.repository.GenreRepository;
 import com.alltimewrapped.backend.repository.TrackRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +7,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -24,9 +16,6 @@ import java.util.Map;
 public class OltpBackfillService {
 
     private final TrackRepository trackRepository;
-    private final ArtistRepository artistRepository;
-    private final AlbumRepository albumRepository;
-    private final GenreRepository genreRepository;
     private final JdbcTemplate jdbcTemplate;
 
     /**
@@ -140,17 +129,25 @@ public class OltpBackfillService {
 
         // 7. Resolve track genres from other tracks of the same artist if they have only 'unknown'
         int resolvedGenresCount = jdbcTemplate.update("""
+                WITH unknown_genre AS (
+                    SELECT id
+                    FROM oltp.genres
+                    WHERE LOWER(name) = 'unknown'
+                    LIMIT 1
+                )
                 INSERT INTO oltp.track_genres (track_id, genre_id)
                 SELECT DISTINCT t_target.id, tg_source.genre_id
                 FROM oltp.tracks t_target
                 JOIN %s ta_target ON t_target.id = ta_target.track_id
                 JOIN %s ta_source ON ta_target.artist_id = ta_source.artist_id
                 JOIN oltp.track_genres tg_source ON ta_source.track_id = tg_source.track_id
-                WHERE tg_source.genre_id != 1
+                CROSS JOIN unknown_genre ug
+                WHERE tg_source.genre_id <> ug.id
                   AND NOT EXISTS (
-                      SELECT 1 
-                      FROM oltp.track_genres tg_target 
-                      WHERE tg_target.track_id = t_target.id AND tg_target.genre_id != 1
+                      SELECT 1
+                      FROM oltp.track_genres tg_target
+                      WHERE tg_target.track_id = t_target.id
+                        AND tg_target.genre_id <> ug.id
                   )
                 ON CONFLICT DO NOTHING
                 """.formatted(trackArtistsTable, trackArtistsTable));
@@ -158,12 +155,20 @@ public class OltpBackfillService {
 
         // 8. Delete 'unknown' (genre_id = 1) mapping for any tracks that have at least one real genre
         int cleanedUnknownCount = jdbcTemplate.update("""
+                WITH unknown_genre AS (
+                    SELECT id
+                    FROM oltp.genres
+                    WHERE LOWER(name) = 'unknown'
+                    LIMIT 1
+                )
                 DELETE FROM oltp.track_genres tg
-                WHERE tg.genre_id = 1
+                USING unknown_genre ug
+                WHERE tg.genre_id = ug.id
                   AND EXISTS (
-                      SELECT 1 
-                      FROM oltp.track_genres tg2 
-                      WHERE tg2.track_id = tg.track_id AND tg2.genre_id != 1
+                      SELECT 1
+                      FROM oltp.track_genres tg2
+                      WHERE tg2.track_id = tg.track_id
+                        AND tg2.genre_id <> ug.id
                   )
                 """);
         log.info("[OLTP BACKFILL] Removed 'unknown' genre from {} tracks that have real genres", cleanedUnknownCount);

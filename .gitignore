@@ -31,3 +31,14 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+# Generated output
+backend/target/
+frontend/node_modules/
+frontend/dist/
+backend/compile-output.txt
+
+# Local/private demo data
+demo_spotify_history.zip
+*.log
+

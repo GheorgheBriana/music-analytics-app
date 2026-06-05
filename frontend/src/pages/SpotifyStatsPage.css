@@ -613,6 +613,20 @@
 .main-tabs {
     margin-top: 24px;
     margin-bottom: 28px;
+    display: flex;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    justify-content: flex-start !important;
+    gap: 12px;
+    padding-bottom: 8px;
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+}
+
+.main-tabs::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
 }
 
 .main-tabs .tab-btn {
@@ -620,6 +634,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
 }
 
 .app-header {

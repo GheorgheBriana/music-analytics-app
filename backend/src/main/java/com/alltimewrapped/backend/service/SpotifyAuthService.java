@@ -14,7 +14,10 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import org.springframework.web.server.ResponseStatusException;
+
 import java.util.Base64;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +25,7 @@ public class SpotifyAuthService {
 
     private final AppUserRepository appUserRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final SpotifyLinkService spotifyLinkService;
 
     @Value("${spotify.client-id}")
     private String clientId;
@@ -47,17 +51,82 @@ public class SpotifyAuthService {
                 .toUriString();
     }
 
-    // Handles the callback received from Spotify after the user logs in
-    public AppUser handleSpotifyCallback(String code, String ip) {
+    // Builds the Spotify authorization URL for linking Spotify to a logged in manual user
+    public String buildSpotifyLinkUrl(Long currentUserId) {
+        return UriComponentsBuilder
+                .fromUriString("https://accounts.spotify.com/authorize")
+                .queryParam("client_id", clientId)
+                .queryParam("response_type", "code")
+                .queryParam("redirect_uri", redirectUri)
+                .queryParam(
+                            "scope",
+                            "user-read-email user-read-private user-top-read user-read-recently-played user-library-read playlist-read-private playlist-read-collaborative"
+                )
+                .queryParam("state", "link:" + currentUserId)
+                .build()
+                .toUriString();
+    }
+
+    // Handles the callback received from Spotify after the user logs in / links
+    public AppUser handleSpotifyCallback(String code, String state, String ip) {
         SpotifyTokenResponseDTO tokenResponse = requestAccessToken(code);
 
         SpotifyUserProfileDTO userProfile = requestSpotifyUserProfile(tokenResponse.getAccessToken());
 
-        AppUser user = saveOrUpdateSpotifyUser(userProfile, tokenResponse);
+        AppUser user;
+        if (state != null && state.startsWith("link:")) {
+            Long currentUserId = Long.parseLong(state.substring("link:".length()));
+            user = linkSpotifyToExistingUser(currentUserId, userProfile, tokenResponse);
+        } else {
+            user = saveOrUpdateSpotifyUser(userProfile, tokenResponse);
+        }
 
         updateLastLogin(user.getId(), ip);
 
+        // Automatically sync recently played tracks on login
+        if (user.getSpotifyAccessToken() != null && !user.getSpotifyAccessToken().isBlank()) {
+            try {
+                spotifyLinkService.syncRecentlyPlayed(user.getId());
+            } catch (Exception e) {
+                // Log and ignore so login flows do not crash if Spotify Web API is temporarily down
+            }
+        }
+
         return user;
+    }
+
+
+    private AppUser linkSpotifyToExistingUser(
+            Long currentUserId,
+            SpotifyUserProfileDTO userProfile,
+            SpotifyTokenResponseDTO tokenResponse) {
+
+        AppUser user = appUserRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Contul curent nu există."));
+
+        // GUARD: acest cont Spotify e deja legat la ALT user?
+        appUserRepository.findBySpotifyUserId(userProfile.getId())
+                .ifPresent(other -> {
+                    if (!other.getId().equals(currentUserId)) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                "Acest cont Spotify este deja legat la alt utilizator.");
+                    }
+                });
+
+        // Legăm: completăm câmpurile Spotify pe contul curent (NU schimbăm username/parola).
+        user.setSpotifyUserId(userProfile.getId());
+        if (user.getEmail() == null && userProfile.getEmail() != null) {
+            user.setEmail(userProfile.getEmail());   // completăm emailul doar dacă lipsea
+        }
+        user.setSpotifyCountry(userProfile.getCountry());
+        user.setSpotifyProduct(userProfile.getProduct());
+        user.setSpotifyAccessToken(tokenResponse.getAccessToken());
+        if (tokenResponse.getRefreshToken() != null) {
+            user.setSpotifyRefreshToken(tokenResponse.getRefreshToken());
+        }
+
+        return appUserRepository.save(user);
     }
 
     private void updateLastLogin(Long userId, String ip) {
@@ -124,7 +193,9 @@ public class SpotifyAuthService {
     ) {
         return appUserRepository.findBySpotifyUserId(userProfile.getId())
                 .map(existingUser -> {
-                    existingUser.setUsername(buildUsername(userProfile));
+                    if (existingUser.getPasswordHash() == null) {
+                        existingUser.setUsername(buildUsername(userProfile));
+                    }
                     existingUser.setEmail(userProfile.getEmail());
                     existingUser.setSpotifyCountry(userProfile.getCountry());
                     existingUser.setSpotifyProduct(userProfile.getProduct()); 
@@ -137,6 +208,22 @@ public class SpotifyAuthService {
                     return appUserRepository.save(existingUser);
                 })
                 .orElseGet(() -> {
+                    // Try to auto-link if a manual account with the same email exists
+                    if (userProfile.getEmail() != null) {
+                        Optional<AppUser> existingManual = appUserRepository.findByEmail(userProfile.getEmail());
+                        if (existingManual.isPresent()) {
+                            AppUser user = existingManual.get();
+                            user.setSpotifyUserId(userProfile.getId());
+                            user.setSpotifyCountry(userProfile.getCountry());
+                            user.setSpotifyProduct(userProfile.getProduct());
+                            user.setSpotifyAccessToken(tokenResponse.getAccessToken());
+                            if (tokenResponse.getRefreshToken() != null) {
+                                user.setSpotifyRefreshToken(tokenResponse.getRefreshToken());
+                            }
+                            return appUserRepository.save(user);
+                        }
+                    }
+
                     AppUser user = new AppUser();
 
                     user.setSpotifyUserId(userProfile.getId());

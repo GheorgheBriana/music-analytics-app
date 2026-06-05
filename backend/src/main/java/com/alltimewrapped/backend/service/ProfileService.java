@@ -56,9 +56,10 @@ public class ProfileService {
                 """, userId);
 
         Map<String, Object> userRow = jdbcTemplate.queryForMap("""
-                SELECT password_hash FROM oltp.app_users WHERE id = ?
+                SELECT password_hash, spotify_user_id FROM oltp.app_users WHERE id = ?
                 """, userId);
         boolean isLocal = userRow.get("password_hash") != null;
+        String spotifyUserId = (String) userRow.get("spotify_user_id");
 
         ProfileStats stats = computeStats(userId);
 
@@ -73,6 +74,7 @@ public class ProfileService {
                 (String) row.get("last_login_ip"),
                 row.get("last_login_at") != null ? row.get("last_login_at").toString() : null,
                 isLocal,
+                spotifyUserId,
                 stats
         );
     }

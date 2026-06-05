@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchOwnProfile, updateOwnProfile, changePassword } from '../../api/profileApi';
 import { useAuth } from '../../contexts/AuthContext';
+import SpotifyLinkCard from '../../components/SpotifyLinkCard';
 
 
 const AVATAR_PRESETS = [
@@ -320,7 +321,11 @@ export default function ProfilePage() {
                 </section>
             )}
 
-
+            {/* ============ SPOTIFY CONNECTION ============ */}
+            <SpotifyLinkCard
+                isLinked={profile.spotifyUserId != null}
+                onSyncComplete={loadProfile}
+            />
 
             {/* ============ MODBD EXPLAINER ============ */}
             <section className="profile-section modbd-note" style={{ borderLeft: '4px solid #22c55e' }}>

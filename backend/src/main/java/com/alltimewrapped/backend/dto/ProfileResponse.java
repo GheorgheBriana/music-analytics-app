@@ -11,5 +11,7 @@ public record ProfileResponse(
     String lastLoginIp,
     String lastLoginAt,
     boolean isLocal,
+    String spotifyUserId,
     ProfileStats stats
 ) {}
+

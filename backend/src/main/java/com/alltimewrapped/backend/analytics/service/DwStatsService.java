@@ -67,7 +67,8 @@ public class DwStatsService {
     public List<Map<String, Object>> getMonthlyListening(Long userId) {
         String sql = "SELECT year AS \"year\", month AS \"month\", month_name AS \"monthName\", " +
                      "total_plays AS \"totalPlays\", total_minutes AS \"totalMinutes\" " +
-                     "FROM dw.mv_monthly_listening " + mvUserWhere(userId);
+                     "FROM dw.mv_monthly_listening " + mvUserWhere(userId) +
+                     " ORDER BY year, month";
         return jdbcTemplate.queryForList(sql, params(userId));
     }
 
@@ -85,7 +86,8 @@ public class DwStatsService {
 
     public List<Map<String, Object>> getTopGenres(Long userId) {
         String sql = "SELECT genre_name AS \"genreName\", total_plays AS \"totalPlays\", total_minutes AS \"totalMinutes\" " +
-                     "FROM dw.mv_top_genres " + mvUserWhere(userId) + " LIMIT 10";
+                     "FROM dw.mv_top_genres " + mvUserWhere(userId) +
+                     " ORDER BY total_minutes DESC LIMIT 10";
         return jdbcTemplate.queryForList(sql, params(userId));
     }
 
@@ -129,7 +131,8 @@ public class DwStatsService {
     public List<Map<String, Object>> getListeningHeatmap(Long userId) {
         String sql = "SELECT day_of_week AS \"dayOfWeek\", day_name AS \"dayName\", hour AS \"hour\", " +
                      "total_plays AS \"totalPlays\", total_minutes AS \"totalMinutes\" " +
-                     "FROM dw.mv_listening_heatmap " + mvUserWhere(userId);
+                     "FROM dw.mv_listening_heatmap " + mvUserWhere(userId) +
+                     " ORDER BY day_of_week, hour";
         return jdbcTemplate.queryForList(sql, params(userId));
     }
 
