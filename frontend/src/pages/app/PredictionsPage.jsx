@@ -261,26 +261,31 @@ Generated with All-Time Wrapped.`
 
                     {/* SARIMA MODEL EXPLAINER CARD */}
                     <div style={{ marginTop: '20px', padding: '16px 20px', background: 'rgba(255, 255, 255, 0.015)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '12px', fontSize: '13px', color: '#c7c7d1' }}>
-                        <h4 style={{ margin: '0 0 10px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>📖</span> Understanding the SARIMA Model Graph
+                        <h4 style={{ margin: '0 0 12px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>📖</span> Quick Guide: Reading the SARIMA Graph
                         </h4>
-                        <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '8px', lineHeight: 1.5 }}>
-                            <li>
-                                <strong>Actual Monthly Plays (Green):</strong> Your real, historical Spotify listening volume logged in the Data Warehouse.
-                            </li>
-                            <li>
-                                <strong>SARIMA Model Fit (Purple):</strong> The seasonal forecasting model ($SARIMA(1,0,0) \times (1,0,0)_{12}$) estimated via Ordinary Least Squares (OLS) on lags 1, 12, and 13.
-                            </li>
-                            <li>
-                                <strong>Flat Initial Phase (2019 – 2021):</strong> The seasonal component requires a 13-month historical window to look back at previous years. During this "warm-up" period, the model uses a linear trend fallback.
-                            </li>
-                            <li>
-                                <strong>Seasonal Tracking Phase (Post-2021):</strong> Once the buffer is filled, the model tracks your seasonal patterns (peaks and drops) based on previous years.
-                            </li>
-                            <li>
-                                <strong>3-Month Forecast (Dashed purple):</strong> Predicts your future listening volume recursively, modeling seasonal fluctuations rather than a flat straight line.
-                            </li>
-                        </ul>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', lineHeight: 1.4 }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ color: '#1db954', fontSize: '18px', marginRight: '10px', lineHeight: 1 }}>●</span>
+                                <span><strong>Actual Plays (Green):</strong> Your real, historical Spotify listening volume.</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ color: '#8b5cf6', fontSize: '18px', marginRight: '10px', lineHeight: 1 }}>●</span>
+                                <span><strong>SARIMA Model Fit (Purple):</strong> Mathematical curve fitting your seasonal patterns.</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px' }}>
+                                <span style={{ color: '#a8a8b8', marginRight: '8px', fontFamily: 'monospace' }}>└─</span>
+                                <span style={{ fontSize: '12px', color: '#a8a8b8' }}><strong>Flat Phase (2019-2021):</strong> Initial 13-month warm-up baseline (lacks year-over-year memory).</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px' }}>
+                                <span style={{ color: '#a8a8b8', marginRight: '8px', fontFamily: 'monospace' }}>└─</span>
+                                <span style={{ fontSize: '12px', color: '#a8a8b8' }}><strong>Wavy Phase (Post-2021):</strong> Active seasonal tracking (picks up peaks/drops).</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ color: '#8b5cf6', fontSize: '14px', fontWeight: 'bold', marginRight: '10px', fontFamily: 'monospace', letterSpacing: '-1px' }}>╌╌</span>
+                                <span><strong>3-Month Forecast (Dashed):</strong> Future prediction waves based on your past seasons.</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
