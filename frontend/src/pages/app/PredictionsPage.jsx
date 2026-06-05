@@ -213,7 +213,7 @@ Generated with All-Time Wrapped.`
                         <div>
                             <h3 style={{ margin: 0 }}>Listening Volume Evolution</h3>
                             <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#a8a8b8' }}>
-                                Fitted trend line on monthly play counts. Solid line = actual, dashed = 3-month projection.
+                                Fitted SARIMA(1,0,0)x(1,0,0)₁₂ model on monthly play counts. Solid line = actual, dashed = 3-month projection.
                             </p>
                         </div>
                         <span style={{
@@ -243,11 +243,11 @@ Generated with All-Time Wrapped.`
                                 <YAxis stroke="#a3a3a3" tick={{ fontSize: 11 }} />
                                 <Tooltip 
                                     contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
-                                    formatter={(value, name) => [value === null || value === -1 ? 'N/A' : Math.round(value), name === 'actual' ? 'Actual Plays' : 'Fitted Regression']}
+                                    formatter={(value, name) => [value === null || value === -1 ? 'N/A' : Math.round(value), name === 'actual' ? 'Actual Plays' : 'SARIMA Model Fit']}
                                 />
                                 <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                                 <Line type="monotone" dataKey="actual" stroke="#1db954" strokeWidth={3} name="Actual Monthly Plays" dot={{ r: 4, strokeWidth: 0 }} activeDot={{ r: 6 }} connectNulls={false} />
-                                <Line type="monotone" dataKey="fitted" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" name="Linear Regression + 3mo Projection" dot={false} />
+                                <Line type="monotone" dataKey="fitted" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" name="SARIMA + 3mo Forecast" dot={false} />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
