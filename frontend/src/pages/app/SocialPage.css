@@ -3,13 +3,14 @@
 
 .social-page-container {
     padding: 32px;
-    background-color: #0b0b0f;
-    min-height: 100vh;
     color: #f3f4f6;
     font-family: 'Inter', sans-serif;
+    background-color: #0b0b0f;
     background-image: 
         radial-gradient(at 10% 20%, rgba(29, 185, 84, 0.05) 0px, transparent 50%),
         radial-gradient(at 90% 80%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .social-header {
@@ -30,7 +31,7 @@
 
 .social-header p {
     color: #9ca3af;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 400;
 }
 
@@ -597,10 +598,11 @@
 }
 
 .common-section li::before {
-    content: "⚡";
+    content: "●";
+    color: #1db954;
     margin-right: 10px;
-    font-size: 12px;
-    opacity: 0.7;
+    font-size: 8px;
+    opacity: 0.8;
 }
 
 .no-common {

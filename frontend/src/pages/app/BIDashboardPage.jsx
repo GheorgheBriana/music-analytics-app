@@ -13,7 +13,8 @@ import {
     XAxis,
     YAxis,
     Legend,
-    LabelList
+    LabelList,
+    ReferenceLine
 } from 'recharts'
 import {
     getAdvancedOverview,
@@ -32,6 +33,8 @@ import {
     getWarehouseSummary,
     getWeekendVsWeekdayStats
 } from '../../api/analyticsApi'
+import { getUserStats } from '../../api/statsApi'
+import ActivityHeatmap from '../../components/ActivityHeatmap'
 
 const DAY_ORDER = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -52,24 +55,58 @@ function BIDashboardPage() {
     const [monthlyMetric, setMonthlyMetric] = useState('hours')
     const [monthlyMode, setMonthlyMode] = useState('monthly')
 
+    // Calendar & Heatmap States
+    const [importedStats, setImportedStats] = useState(null)
+    const [dailyActivity, setDailyActivity] = useState([])
+    const [selectedHeatmapYear, setSelectedHeatmapYear] = useState(null)
+    const [selectedMonthYear, setSelectedMonthYear] = useState('All')
+
+    const activeUserId = localStorage.getItem('userId') || localStorage.getItem('original_user_id')
+
     useEffect(() => {
         async function loadReports() {
             try {
                 setLoading(true)
                 setError('')
 
+                if (!activeUserId) {
+                    setError('No logged-in user was found.')
+                    setLoading(false)
+                    return
+                }
+
                 const [
                     monthlyListening, topGenres, weekendVsWeekday, monthlyGrowth, artistLoyalty, musicInsights,
-                    advancedOverview, partOfDayStats, platforms, completionRate, peakListeningTime, listeningPersonality, artistRankingEvolution
+                    advancedOverview, partOfDayStats, platforms, completionRate, peakListeningTime, listeningPersonality, artistRankingEvolution,
+                    statsData
                 ] = await Promise.all([
                     getMonthlyListening(), getTopGenres(), getWeekendVsWeekdayStats(), getMonthlyGrowth(), getArtistLoyalty(), getMusicInsights(),
-                    getWarehouseSummary(), getPartOfDayStats(), getPlatforms(), getCompletionRate(), getPeakListeningTime(), getListeningPersonality(), getArtistRankingEvolution()
+                    getWarehouseSummary(), getPartOfDayStats(), getPlatforms(), getCompletionRate(), getPeakListeningTime(), getListeningPersonality(), getArtistRankingEvolution(),
+                    getUserStats(activeUserId)
                 ])
 
                 setReports({
                     monthlyListening, topGenres, weekendVsWeekday, monthlyGrowth, artistLoyalty, musicInsights,
                     advancedOverview, partOfDayStats, platforms, completionRate, peakListeningTime, listeningPersonality, artistRankingEvolution
                 })
+                setImportedStats(statsData)
+
+                // Initialize years for calendar
+                const years = statsData?.listeningActivityByYear?.map((item) => item.year) || []
+                const latestYear = years.length > 0 ? Math.max(...years) : new Date().getFullYear()
+                setSelectedHeatmapYear(latestYear)
+                setSelectedMonthYear(latestYear.toString())
+
+                // Fetch daily activity for the latest year
+                const from = `${latestYear}-01-01`
+                const to = `${latestYear}-12-31`
+                const heatmapRes = await fetch(
+                    `http://localhost:8080/api/stats/user/${activeUserId}/daily-activity?from=${from}&to=${to}`
+                )
+                if (heatmapRes.ok) {
+                    const dailyData = await heatmapRes.json()
+                    setDailyActivity(dailyData)
+                }
             } catch (error) {
                 setError('BI reports could not be loaded. Run the analytics pipeline first, then refresh this page.')
             } finally {
@@ -78,7 +115,123 @@ function BIDashboardPage() {
         }
 
         loadReports()
-    }, [])
+    }, [activeUserId])
+
+    function getAvailableYears(stats) {
+        return stats?.listeningActivityByYear?.map((item) => item.year) || []
+    }
+
+    function getMonthName(monthNumber) {
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ]
+        return monthNames[monthNumber - 1] || 'Unknown month'
+    }
+
+    function getMaxPlayCount(items) {
+        if (!items || items.length === 0) {
+            return 1
+        }
+        return Math.max(...items.map((item) => item.playCount || 0), 1)
+    }
+
+    async function handleHeatmapYearChange(year) {
+        try {
+            setSelectedHeatmapYear(year)
+            if (!activeUserId) return
+            const from = `${year}-01-01`
+            const to = `${year}-12-31`
+            const response = await fetch(
+                `http://localhost:8080/api/stats/user/${activeUserId}/daily-activity?from=${from}&to=${to}`
+            )
+            if (response.ok) {
+                const data = await response.json()
+                setDailyActivity(data)
+            } else {
+                setDailyActivity([])
+            }
+        } catch (error) {
+            setDailyActivity([])
+        }
+    }
+
+    function renderActivityByYear() {
+        const activityByYear = importedStats?.listeningActivityByYear || []
+        if (activityByYear.length === 0) {
+            return (
+                <p className="empty-stats-message">
+                    No yearly activity found yet.
+                </p>
+            )
+        }
+        const maxPlayCount = getMaxPlayCount(activityByYear)
+        return (
+            <div className="bar-chart-list">
+                {activityByYear.map((item) => {
+                    const barWidth = `${(item.playCount / maxPlayCount) * 100}%`
+                    return (
+                        <div className="bar-row" key={item.year}>
+                            <div className="bar-label">
+                                <span>{item.year}</span>
+                                <small>{item.playCount} plays</small>
+                            </div>
+                            <div className="bar-track">
+                                <div
+                                    className="bar-fill"
+                                    style={{ width: barWidth }}
+                                />
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+        )
+    }
+
+    function renderActivityByMonth() {
+        const activityByMonth = importedStats?.listeningActivityByMonth || []
+        if (activityByMonth.length === 0) {
+            return (
+                <p className="empty-stats-message">
+                    No monthly activity found yet.
+                </p>
+            )
+        }
+        const filteredActivity = selectedMonthYear === 'All'
+            ? activityByMonth
+            : activityByMonth.filter((item) => item.year.toString() === selectedMonthYear)
+
+        if (filteredActivity.length === 0) {
+            return (
+                <p className="empty-stats-message">
+                    No monthly activity found for year {selectedMonthYear}.
+                </p>
+            )
+        }
+        const maxPlayCount = getMaxPlayCount(filteredActivity)
+        return (
+            <div className="bar-chart-list">
+                {filteredActivity.map((item) => {
+                    const barWidth = `${(item.playCount / maxPlayCount) * 100}%`
+                    return (
+                        <div className="bar-row" key={`${item.year}-${item.month}`}>
+                            <div className="bar-label">
+                                <span>{getMonthName(item.month)} {item.year}</span>
+                                <small>{item.playCount} plays</small>
+                            </div>
+                            <div className="bar-track">
+                                <div
+                                    className="bar-fill"
+                                    style={{ width: barWidth }}
+                                />
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+        )
+    }
 
 
 
@@ -334,9 +487,9 @@ function BIDashboardPage() {
     }
 
     function renderTopGenresChart() {
-        const data = reports?.topGenres || []
-        const isUnknown = data.length > 0 && data[0].genreName?.toLowerCase() === 'unknown'
-        if (data.length === 0 || isUnknown) return <div className="chart-box" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}><h3>Genre Coverage</h3><div style={{ flex: 1, display: 'flex' }}>{renderEmpty('Genre data requires Spotify API enrichment. Currently using fallback dimension.')}</div></div>
+        const rawData = reports?.topGenres || []
+        const data = rawData.filter(g => g.genreName && g.genreName.toLowerCase() !== 'unknown')
+        if (data.length === 0) return <div className="chart-box" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}><h3>Top genres</h3><div style={{ flex: 1, display: 'flex' }}>{renderEmpty('No genre statistics available.')}</div></div>
 
         return (
             <div className="chart-box">
@@ -419,13 +572,17 @@ function BIDashboardPage() {
 
         return (
             <div className="chart-box">
-                <h3>Monthly growth (%)</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '10px' }}>
+                    <h3 style={{ margin: 0 }}>Monthly growth (%)</h3>
+                    <span style={{ fontSize: '11px', color: '#a3a3a3', fontWeight: '400' }}>Last 12 months (vs. previous month)</span>
+                </div>
                 <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                         <XAxis dataKey="displayMonth" stroke="#a3a3a3" fontSize={11} axisLine={false} tickLine={false} />
-                        <YAxis stroke="#a3a3a3" fontSize={12} axisLine={false} tickLine={false} />
+                        <YAxis stroke="#a3a3a3" fontSize={12} axisLine={false} tickLine={false} domain={[dataMin => Math.min(0, dataMin), 'auto']} />
                         <Tooltip contentStyle={{ backgroundColor: 'rgba(23, 25, 35, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                        <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
                         <Bar dataKey="playGrowthPercent" name="Growth %" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={40} />
                     </BarChart>
                 </ResponsiveContainer>
@@ -555,6 +712,57 @@ function BIDashboardPage() {
             </div>
 
             {renderAdvancedOverview()}
+
+            {/* Calendar & Listening History Heatmap Section */}
+            {importedStats && (
+                <>
+                    <div style={{ marginBottom: '24px' }}>
+                        <ActivityHeatmap
+                            data={dailyActivity}
+                            selectedYear={selectedHeatmapYear}
+                            availableYears={getAvailableYears(importedStats)}
+                            onYearChange={handleHeatmapYearChange}
+                        />
+                    </div>
+
+                    <div className="all-time-section nested-section" style={{ padding: '24px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '20px', marginBottom: '24px' }}>
+                        <h2 style={{ fontSize: '20px', margin: '0 0 16px 0', fontFamily: "'Outfit', sans-serif" }}>Listening Activity History</h2>
+
+                        <div className="all-time-grid">
+                            <div className="all-time-panel">
+                                <h3>By Year</h3>
+                                {renderActivityByYear()}
+                            </div>
+
+                            <div className="all-time-panel">
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                    <h3 style={{ margin: 0 }}>By Month</h3>
+                                    <select
+                                        style={{
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            background: 'rgba(255, 255, 255, 0.1)',
+                                            color: '#fff',
+                                            border: 'none',
+                                            outline: 'none',
+                                            cursor: 'pointer',
+                                            fontSize: '12px'
+                                        }}
+                                        value={selectedMonthYear}
+                                        onChange={(e) => setSelectedMonthYear(e.target.value)}
+                                    >
+                                        <option style={{ background: '#222533' }} value="All">All Years</option>
+                                        {getAvailableYears(importedStats).map(y => (
+                                            <option style={{ background: '#222533' }} key={y} value={y.toString()}>{y}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {renderActivityByMonth()}
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
 
             <div className="bi-dashboard-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                 {renderMonthlyListeningChart()}

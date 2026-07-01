@@ -3,6 +3,7 @@ package com.alltimewrapped.backend.service;
 import com.alltimewrapped.backend.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class TasteEvolutionService {
     };
 
     @Transactional(readOnly = true)
+    @Cacheable("evolution")
     public EvolutionResponse getEvolution(Long userId) {
         log.info("[EVOLUTION] Running Taste Evolution analysis for user ID {}", userId);
 

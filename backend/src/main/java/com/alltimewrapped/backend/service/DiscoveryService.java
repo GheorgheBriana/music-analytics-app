@@ -3,6 +3,7 @@ package com.alltimewrapped.backend.service;
 import com.alltimewrapped.backend.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ public class DiscoveryService {
     private final LastFmService lastFmService;
 
     @Transactional(readOnly = true)
+    @Cacheable("discovery")
     public DiscoveryResponse getRecommendations(Long userId, String level) {
         log.info("[DISCOVERY] Calculating recommendations for user ID {}, level {}", userId, level);
 
@@ -28,7 +30,7 @@ public class DiscoveryService {
         List<Map<String, Object>> genreRows = jdbcTemplate.queryForList("""
                 SELECT genre_name, total_plays
                 FROM dw.mv_top_genres
-                WHERE original_user_id = ?
+                WHERE original_user_id = ? AND LOWER(genre_name) <> 'unknown'
                 ORDER BY total_plays DESC
                 """, userId);
 
@@ -71,20 +73,37 @@ public class DiscoveryService {
             recommendations.addAll(fallbackItems);
             
             if (recommendations.isEmpty()) {
-                fallbackMessage = "Your tastes are unique! We could not generate social collaborative recommendations, so we suggest exploring artists in your favorite genres.";
                 // Last ditch effort: populate using top genres directly
                 List<DiscoveryRecommendation> emergencyItems = runEmergencyFallback(activeLevel, sortedGenres, listenedArtists, recommendations);
                 recommendations.addAll(emergencyItems);
+                fallbackMessage = null;
             } else {
-                fallbackMessage = "Since you are among the first users in the community, recommendations are based on your personal taste trajectory from Evolution.";
+                fallbackMessage = null;
             }
+        } else {
+            fallbackMessage = null;
         }
 
-        // Limit results to 5
-        List<DiscoveryRecommendation> finalRecs = recommendations.stream()
-                .distinct()
-                .limit(5)
-                .toList();
+        // Limit results to 5 with genre diversity (max 2 per genre)
+        Map<String, Integer> genreCounts = new HashMap<>();
+        List<DiscoveryRecommendation> finalRecs = new ArrayList<>();
+        for (DiscoveryRecommendation rec : recommendations.stream().distinct().toList()) {
+            String gKey = rec.genreName() != null ? rec.genreName().toLowerCase() : "other";
+            int currentCount = genreCounts.getOrDefault(gKey, 0);
+            if (currentCount < 2) {
+                finalRecs.add(rec);
+                genreCounts.put(gKey, currentCount + 1);
+            }
+            if (finalRecs.size() >= 5) break;
+        }
+        if (finalRecs.size() < 5) {
+            for (DiscoveryRecommendation rec : recommendations.stream().distinct().toList()) {
+                if (!finalRecs.contains(rec)) {
+                    finalRecs.add(rec);
+                }
+                if (finalRecs.size() >= 5) break;
+            }
+        }
 
         return new DiscoveryResponse(finalRecs, fallbackMessage);
     }
@@ -121,14 +140,15 @@ public class DiscoveryService {
             Long peerId = (Long) simObj[0];
             double similarityScore = (double) simObj[1];
 
-            // Fetch top artists of the peer
+            // Fetch top artists of the peer (requiring at least 2 unique listeners in the database to filter out single-user noise)
             List<Map<String, Object>> peerArtists = jdbcTemplate.queryForList("""
                     SELECT a.artist_name, g.genre_name, COUNT(f.fact_id) as plays
                     FROM dw.dw_fact_listening_event f
                     JOIN dw.dw_dim_user u ON f.user_key = u.user_key
                     JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
                     JOIN dw.dw_dim_genre g ON f.genre_key = g.genre_key
-                    WHERE u.original_user_id = ?
+                    JOIN dw.mv_artist_stats ast ON f.artist_key = ast.artist_key
+                    WHERE u.original_user_id = ? AND ast.unique_listeners >= 2 AND LOWER(g.genre_name) <> 'unknown'
                     GROUP BY a.artist_name, g.genre_name
                     ORDER BY plays DESC
                     LIMIT 15
@@ -147,7 +167,7 @@ public class DiscoveryService {
                 if (levelMatch) {
                     String simpleReason = "Recommended based on your social profile.";
                     String detailedReason = String.format(
-                            "A user with similar tastes (%.0f%% genre match) listens heavily to this artist. Level: %s.",
+                            "Recommended from a peer listener with %.0f%% overall taste compatibility. Level: %s.",
                             similarityScore * 100, level
                     );
                     recs.add(new DiscoveryRecommendation(artist, genre, level, simpleReason, detailedReason));
@@ -209,12 +229,13 @@ public class DiscoveryService {
                 String cleaned = artist.toLowerCase().trim();
 
                 if (!listenedArtists.contains(cleaned) && !alreadyRecommended.contains(cleaned)) {
+                    String displayGenre = getArtistPrimaryGenre(artist, genre);
                     String simpleReason = "Discovered through your taste evolution.";
                     String detailedReason = String.format(
                             "Belongs to the genre %s, which is growing in your recent history (slope m = %.3f). Level: %s.",
-                            genre, gp.slope(), level
+                            displayGenre, gp.slope(), level
                     );
-                    fallbackRecs.add(new DiscoveryRecommendation(artist, genre, level, simpleReason, detailedReason));
+                    fallbackRecs.add(new DiscoveryRecommendation(artist, displayGenre, level, simpleReason, detailedReason));
                     alreadyRecommended.add(cleaned);
                     count++;
                 }
@@ -270,12 +291,13 @@ public class DiscoveryService {
                 String cleaned = artist.toLowerCase().trim();
 
                 if (!listenedArtists.contains(cleaned) && !alreadyRecommended.contains(cleaned)) {
-                    String simpleReason = String.format("Recommendation based on the %s genre.", genre);
+                    String displayGenre = getArtistPrimaryGenre(artist, genre);
+                    String simpleReason = String.format("Recommendation based on the %s genre.", displayGenre);
                     String detailedReason = String.format(
                             "We suggest this artist from the %s genre to explore your library. Level: %s.",
-                            genre, level
+                            displayGenre, level
                     );
-                    emergencyRecs.add(new DiscoveryRecommendation(artist, genre, level, simpleReason, detailedReason));
+                    emergencyRecs.add(new DiscoveryRecommendation(artist, displayGenre, level, simpleReason, detailedReason));
                     alreadyRecommended.add(cleaned);
                     count++;
                 }
@@ -290,14 +312,14 @@ public class DiscoveryService {
         int index = targetGenres.indexOf(genre);
         
         if ("comfort".equals(level)) {
-            // Must be in top 3 genres
-            return index >= 0 && index < 3;
+            // Match top preferences or user's top 6 dominant genres
+            return index >= 0 && index < Math.max(6, Math.min(10, targetGenres.size()));
         } else if ("balance".equals(level)) {
-            // Must be in rank 4-6 genres
-            return index >= 3 && index < 6;
+            // Match medium-range genres or middle ranks
+            return index >= 2 && index < Math.max(12, Math.min(20, targetGenres.size()));
         } else { // adventure
-            // Must be rank > 6 OR not present in the user's list at all
-            return index < 0 || index >= 6;
+            // Match lower rank genres or completely new genres outside user's top list
+            return index < 0 || index >= 5;
         }
     }
 
@@ -305,7 +327,7 @@ public class DiscoveryService {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT genre_name, total_plays
                 FROM dw.mv_top_genres
-                WHERE original_user_id = ?
+                WHERE original_user_id = ? AND LOWER(genre_name) <> 'unknown'
                 """, userId);
 
         double total = rows.stream()
@@ -354,5 +376,36 @@ public class DiscoveryService {
             log.error("Failed to query local top artists for genre {}: {}", genre, e.getMessage());
             return new ArrayList<>();
         }
+    }
+
+    private String getArtistPrimaryGenre(String artistName, String fallbackGenre) {
+        if (artistName == null) return fallbackGenre;
+        try {
+            List<String> dwGenres = jdbcTemplate.queryForList("""
+                    SELECT g.genre_name
+                    FROM dw.dw_fact_listening_event f
+                    JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
+                    JOIN dw.dw_dim_genre g ON f.genre_key = g.genre_key
+                    WHERE LOWER(a.artist_name) = LOWER(?) AND LOWER(g.genre_name) <> 'unknown'
+                    GROUP BY g.genre_name
+                    ORDER BY COUNT(f.fact_id) DESC
+                    LIMIT 1
+                    """, String.class, artistName);
+            if (!dwGenres.isEmpty() && dwGenres.get(0) != null && !dwGenres.get(0).isBlank()) {
+                return dwGenres.get(0);
+            }
+            List<String> oltpGenres = jdbcTemplate.queryForList("""
+                    SELECT genre_enriched
+                    FROM oltp.artists
+                    WHERE LOWER(artist_name) = LOWER(?) AND genre_enriched IS NOT NULL AND LOWER(genre_enriched) <> 'unknown'
+                    LIMIT 1
+                    """, String.class, artistName);
+            if (!oltpGenres.isEmpty() && oltpGenres.get(0) != null && !oltpGenres.get(0).isBlank()) {
+                return oltpGenres.get(0);
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return fallbackGenre;
     }
 }

@@ -70,16 +70,40 @@ export default function SpotifyLinkCard({ isLinked = false, onSyncComplete }) {
                         )}
                     </button>
                 ) : (
-                    <button className="slc-btn sync" onClick={handleSync} disabled={syncing}>
-                        {syncing ? (
-                            <>
-                                <span className="slc-spinner"></span>
-                                Sincronizare în curs...
-                            </>
-                        ) : (
-                            'Sincronizează redările recente'
-                        )}
-                    </button>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        <button className="slc-btn sync" onClick={handleSync} disabled={syncing}>
+                            {syncing ? (
+                                <>
+                                    <span className="slc-spinner"></span>
+                                    Sincronizare în curs...
+                                </>
+                            ) : (
+                                'Sincronizează redările recente'
+                            )}
+                        </button>
+                        <button 
+                            className="slc-btn reconnect" 
+                            onClick={handleLink} 
+                            disabled={linking} 
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                color: '#fff',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                boxShadow: 'none',
+                                cursor: 'pointer'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                            }}
+                        >
+                            {linking ? 'Redirecting...' : 'Reconectează Spotify'}
+                        </button>
+                    </div>
                 )}
             </div>
 

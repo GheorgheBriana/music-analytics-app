@@ -125,6 +125,17 @@ Generated with All-Time Wrapped.`
     const trendLabel = getTrendLabel(predictions.listeningTrend)
     const changePercent = predictions.listeningChangePercent ?? 0
 
+    const rSquared = predictions.trend?.rSquared ?? 0
+    const variancePercent = (rSquared * 100).toFixed(0)
+    const fitLabel = rSquared >= 0.5 
+        ? 'strong seasonal fit' 
+        : rSquared >= 0.15 
+            ? 'moderate seasonal fit' 
+            : `explains ${variancePercent}% of variance`
+    const fitColor = rSquared >= 0.5 ? '#1db954' : rSquared >= 0.15 ? '#ffc107' : '#a8a8b8'
+    const fitBg = rSquared >= 0.5 ? 'rgba(29,185,84,0.1)' : rSquared >= 0.15 ? 'rgba(255,193,7,0.1)' : 'rgba(255,255,255,0.05)'
+    const fitBorder = rSquared >= 0.5 ? 'rgba(29,185,84,0.2)' : rSquared >= 0.15 ? 'rgba(255,193,7,0.2)' : 'rgba(255,255,255,0.1)'
+
     // Compute weekly distribution spread to detect uniform distribution
     const dayProbs = predictions.dayOfWeekProbabilities || {}
     const dayProbValues = Object.values(dayProbs)
@@ -145,63 +156,64 @@ Generated with All-Time Wrapped.`
                     </p>
                 </div>
 
-                <div className="all-time-summary" style={{ color: trendColor, background: 'rgba(255, 255, 255, 0.05)', padding: '16px 24px', borderRadius: '18px', border: '1px solid ' + trendColor + '33' }}>
+                <div className="all-time-summary" style={{ 
+                    color: trendColor, 
+                    background: 'rgba(255, 255, 255, 0.05)', 
+                    padding: '16px 24px', 
+                    borderRadius: '18px', 
+                    border: '1px solid ' + trendColor + '33',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    minWidth: '120px'
+                }}>
                     <strong style={{ fontSize: '36px', display: 'block', lineHeight: 1 }}>{trendIcon}</strong>
                     <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{trendLabel}</span>
                 </div>
             </div>
 
             <div className="overview-grid">
-                <div className="overview-card" style={{ position: 'relative' }}>
+                <div className="overview-card" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span>Predicted top artist</span>
                     <strong>{predictions.predictedTopArtist.name}</strong>
-                    <div 
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}
-                        title="Proportion of this artist in your recent decay-weighted history. Low values are typical for diverse listeners."
-                    >
-                        <span style={{ fontSize: '11px', color: '#a8a8b8', borderBottom: '1px dotted #a8a8b8', cursor: 'help' }}>
-                            Recent listening cota
+                    <small style={{ color: '#a8a8b8', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }} title="Proportion of this artist in your recent decay-weighted history. Low values are typical for diverse listeners.">
+                        <span>Recent share: {(predictions.predictedTopArtist.confidence * 100).toFixed(1)}%</span>
+                        <span style={{ fontSize: '11px', color: '#888899' }}>
+                            {predictions.predictedTopArtist.confidenceLabel === 'HIGH' 
+                                ? 'strong dominance' 
+                                : predictions.predictedTopArtist.confidenceLabel === 'MEDIUM' 
+                                    ? 'moderate dominance' 
+                                    : 'balanced rotation'}
                         </span>
-                        <span style={{ 
-                            fontSize: '11px', 
-                            fontWeight: 'bold', 
-                            color: predictions.predictedTopArtist.confidenceLabel === 'HIGH' ? '#1db954' : predictions.predictedTopArtist.confidenceLabel === 'MEDIUM' ? '#ffc107' : '#a78bfa' 
-                        }}>
-                            {(predictions.predictedTopArtist.confidence * 100).toFixed(1)}% ({
-                                predictions.predictedTopArtist.confidenceLabel === 'HIGH' 
-                                    ? 'Strong Dominance' 
-                                    : predictions.predictedTopArtist.confidenceLabel === 'MEDIUM' 
-                                        ? 'Moderate Dominance' 
-                                        : 'Balanced Rotation'
-                            })
-                        </span>
-                    </div>
+                    </small>
                 </div>
 
-                <div className="overview-card">
+                <div className="overview-card" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span>Most likely listening day</span>
                     <strong>{predictions.mostActiveDayOfWeek}</strong>
                     <small style={{ color: '#a8a8b8', fontSize: '12px' }}>
                         {isUniformDays 
-                            ? 'Balanced weekly pattern (uniform distribution)' 
-                            : 'Predicted from your weekly listening pattern'
+                            ? 'Fairly even across the week' 
+                            : 'Predicted peak weekday'
                         }
                     </small>
                 </div>
 
-                <div className="overview-card">
+                <div className="overview-card" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span>Predicted peak listening time</span>
                     <strong>{formatHour(predictions.mostActiveHour)}</strong>
                     <small style={{ color: '#a8a8b8', fontSize: '12px' }}>
-                        The hour when you are most likely to listen
+                        Peak hours of activity
                     </small>
                 </div>
 
-                <div className="overview-card">
+                <div className="overview-card" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span>Most likely active month</span>
                     <strong>{predictions.mostActiveMonth}</strong>
                     <small style={{ color: '#a8a8b8', fontSize: '12px' }}>
-                        Predicted from your activity across all years
+                        Peak month of activity
                     </small>
                 </div>
             </div>
@@ -213,19 +225,16 @@ Generated with All-Time Wrapped.`
                         <div>
                             <h3 style={{ margin: 0 }}>Listening Volume Evolution</h3>
                             <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#a8a8b8' }}>
-                                Fitted SARIMA(1,0,0)x(1,0,0)₁₂ model on monthly play counts. Solid line = actual, dashed = 3-month projection.
+                                Fitted <span title="Model order: SARIMA(1,0,0)x(1,0,0)₁₂" style={{ borderBottom: '1px dotted #a8a8b8', cursor: 'help' }}>SARIMA</span> seasonal model on monthly plays. Solid line = actual, dashed = 3-month forecast.
                             </p>
                         </div>
                         <span style={{
                             padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold',
-                            background: predictions.trend.confidenceLabel === 'HIGH' ? 'rgba(29,185,84,0.15)'
-                                      : predictions.trend.confidenceLabel === 'MEDIUM' ? 'rgba(255,193,7,0.15)'
-                                      : 'rgba(255,77,109,0.15)',
-                            color: predictions.trend.confidenceLabel === 'HIGH' ? '#1db954'
-                                 : predictions.trend.confidenceLabel === 'MEDIUM' ? '#ffc107' : '#ff4d6d',
-                            border: '1px solid ' + (predictions.trend.confidenceLabel === 'HIGH' ? 'rgba(29,185,84,0.3)' : predictions.trend.confidenceLabel === 'MEDIUM' ? 'rgba(255,193,7,0.3)' : 'rgba(255,77,109,0.3)')
+                            background: fitBg,
+                            color: fitColor,
+                            border: '1px solid ' + fitBorder
                         }}>
-                            R² = {predictions.trend.rSquared.toFixed(3)} ({predictions.trend.confidenceLabel} FIT)
+                            R² {rSquared.toFixed(2)} · {fitLabel}
                         </span>
                     </div>
 
@@ -255,57 +264,51 @@ Generated with All-Time Wrapped.`
                     {predictions.trend.rSquared < 0.15 && (
                         <div style={{ marginTop: '16px', padding: '12px 16px', background: 'rgba(255, 77, 109, 0.08)', border: '1px solid rgba(255, 77, 109, 0.15)', borderRadius: '12px', color: '#ff4d6d', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span>⚠️</span>
-                            <span><strong>Low Predictability (R² = {predictions.trend.rSquared.toFixed(3)}):</strong> High historical variability in your listening volume. The linear trend line represents a macro average rather than a precise seasonal forecast.</span>
+                            <span><strong>Low Predictability:</strong> High historical variability makes precise seasonal forecasting difficult.</span>
                         </div>
                     )}
 
-                    {/* SARIMA MODEL EXPLAINER CARD */}
-                    <div style={{ marginTop: '20px', padding: '16px 20px', background: 'rgba(255, 255, 255, 0.015)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '12px', fontSize: '13px', color: '#c7c7d1' }}>
-                        <h4 style={{ margin: '0 0 12px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>📖</span> Quick Guide: Reading the SARIMA Graph
-                        </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', lineHeight: 1.4 }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                                <span style={{ color: '#1db954', fontSize: '18px', marginRight: '10px', lineHeight: 1 }}>●</span>
-                                <span><strong>Actual Plays (Green):</strong> Your real, historical Spotify listening volume.</span>
+                    <details style={{ marginTop: '20px', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.01)', overflow: 'hidden' }}>
+                        <summary style={{ padding: '14px 18px', fontWeight: 'bold', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', userSelect: 'none', outline: 'none' }}>
+                            How to read this graph?
+                        </summary>
+                        <div style={{ padding: '0 18px 18px 18px', borderTop: '1px solid rgba(255, 255, 255, 0.03)', paddingTop: '14px', display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+                            <div style={{ flex: '1.2 1 400px', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', color: '#c7c7d1', lineHeight: 1.4 }}>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <span style={{ color: '#1db954', fontSize: '14px', marginRight: '10px', lineHeight: 1 }}>●</span>
+                                    <span><strong>Actual Plays:</strong> Your real Spotify listening history.</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <span style={{ color: '#8b5cf6', fontSize: '14px', marginRight: '10px', lineHeight: 1 }}>●</span>
+                                    <span><strong>SARIMA Model Fit:</strong> Mathematical curve fitting your seasonal patterns.</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '18px' }}>
+                                    <span style={{ color: '#a8a8b8', marginRight: '8px', fontFamily: 'monospace' }}>└─</span>
+                                    <span style={{ fontSize: '12px', color: '#a8a8b8' }}><strong>Flat Phase:</strong> Initial warm-up baseline (not enough history yet to learn the season).</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '18px' }}>
+                                    <span style={{ color: '#a8a8b8', marginRight: '8px', fontFamily: 'monospace' }}>└─</span>
+                                    <span style={{ fontSize: '12px', color: '#a8a8b8' }}><strong>Wavy Phase:</strong> Active seasonal tracking based on your past years.</span>
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                                <span style={{ color: '#8b5cf6', fontSize: '18px', marginRight: '10px', lineHeight: 1 }}>●</span>
-                                <span><strong>SARIMA Model Fit (Purple):</strong> Mathematical curve fitting your seasonal patterns.</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px' }}>
-                                <span style={{ color: '#a8a8b8', marginRight: '8px', fontFamily: 'monospace' }}>└─</span>
-                                <span style={{ fontSize: '12px', color: '#a8a8b8' }}><strong>Flat Phase (2019-2021):</strong> Initial 13-month warm-up baseline (lacks year-over-year memory).</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px' }}>
-                                <span style={{ color: '#a8a8b8', marginRight: '8px', fontFamily: 'monospace' }}>└─</span>
-                                <span style={{ fontSize: '12px', color: '#a8a8b8' }}><strong>Wavy Phase (Post-2021):</strong> Active seasonal tracking (picks up peaks/drops).</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                                <span style={{ color: '#8b5cf6', fontSize: '14px', fontWeight: 'bold', marginRight: '10px', fontFamily: 'monospace', letterSpacing: '-1px' }}>╌╌</span>
-                                <span><strong>3-Month Forecast (Dashed):</strong> Future prediction waves based on your past seasons.</span>
-                            </div>
+                            {predictions.nextMonthForecast && predictions.nextMonthForecast.predictedPlays > 0 && (
+                                <div style={{ flex: '0.8 1 250px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#a8a8b8', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                                        Next Month Forecast
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', margin: '2px 0' }}>
+                                        <span style={{ fontSize: '32px', fontWeight: 'bold', color: '#1db954', lineHeight: 1 }}>
+                                            ~{predictions.nextMonthForecast.predictedPlays}
+                                        </span>
+                                        <span style={{ fontSize: '12px', color: '#a8a8b8', fontWeight: 'bold' }}>plays</span>
+                                    </div>
+                                    <span style={{ fontSize: '11px', color: '#888899', lineHeight: 1.3 }}>
+                                        Safety range: <span style={{ color: '#a8a8b8' }}>{predictions.nextMonthForecast.lowerBound} – {predictions.nextMonthForecast.upperBound}</span> plays (95% confidence based on historical volatility).
+                                    </span>
+                                </div>
+                            )}
                         </div>
-                    </div>
-                </div>
-            )}
- 
-            {/* FORECAST NEXT MONTH */}
-            {predictions.nextMonthForecast && predictions.nextMonthForecast.predictedPlays > 0 && (
-                <div className="all-time-panel" style={{ padding: '24px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <h3 style={{ margin: 0 }}>Statistical Forecast: {predictions.nextMonthForecast.periodLabel}</h3>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginTop: '8px' }}>
-                        <strong style={{ fontSize: '48px', color: '#1db954', lineHeight: 1 }}>
-                            ~{predictions.nextMonthForecast.predictedPlays}
-                        </strong>
-                        <span style={{ color: '#a8a8b8', fontSize: '14px', fontWeight: 'bold' }}>predicted plays</span>
-                    </div>
-                    <p style={{ margin: 0, color: '#c7c7d1', fontSize: '14px' }}>
-                        Predicted range based on historical volatility with a <strong>95% Confidence Interval</strong>:
-                    </p>
-                    <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', width: 'fit-content', fontWeight: 'bold', fontSize: '15px' }}>
-                        Forecast interval: {predictions.nextMonthForecast.lowerBound} – {predictions.nextMonthForecast.upperBound} plays
-                    </div>
+                    </details>
                 </div>
             )}
 
@@ -350,47 +353,6 @@ Generated with All-Time Wrapped.`
                 )}
             </div>
 
-            {/* ANOMALIES DETECTED VIA Z-SCORE */}
-            {predictions.anomalies && predictions.anomalies.length > 0 && (
-                <div className="all-time-panel" style={{ padding: '24px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                    <h3 style={{ margin: '0 0 4px' }}>Listening Activity Anomalies</h3>
-                    <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#a8a8b8' }}>
-                        Months displaying statistically significant peaks or drops (Z-score deviation &gt; 2.0) compared to your historical averages.
-                    </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {predictions.anomalies.map((a, i) => (
-                            <div key={i} style={{
-                                padding: '12px 16px', 
-                                background: 'rgba(255,255,255,0.02)',
-                                borderLeft: `4px solid ${a.type === 'PEAK' ? '#1db954' : '#ff4d6d'}`,
-                                borderRadius: '8px',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
-                            }}>
-                                <div>
-                                    <strong style={{ fontSize: '15px', color: '#fff' }}>{a.periodLabel}</strong>
-                                    <span style={{ marginLeft: '12px', fontSize: '13px', color: '#a3a3a3' }}>
-                                        Plays analyzed: {Math.round(a.plays)}
-                                    </span>
-                                </div>
-                                <span style={{ 
-                                    padding: '4px 10px', 
-                                    borderRadius: '12px', 
-                                    fontSize: '12px', 
-                                    fontWeight: 'bold',
-                                    background: a.type === 'PEAK' ? 'rgba(29, 185, 84, 0.15)' : 'rgba(255, 77, 109, 0.15)',
-                                    color: a.type === 'PEAK' ? '#1db954' : '#ff4d6d'
-                                }}>
-                                    {a.type === 'PEAK' ? '▲ PEAK ACTIVITY' : '▼ DROP ACTIVITY'} (z = {a.zScore > 0 ? '+' + a.zScore : a.zScore})
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* GENRE TRAJECTORIES */}
             {((predictions.risingGenres && predictions.risingGenres.length > 0) || 
               (predictions.fadingGenres && predictions.fadingGenres.length > 0)) && (
                 <div className="all-time-panel" style={{ padding: '24px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
@@ -464,7 +426,7 @@ Generated with All-Time Wrapped.`
                     </div>
                 </div>
                 <p style={{ margin: '8px 0 0 0', color: '#c7c7d1', fontSize: '14px', lineHeight: 1.5 }}>
-                    Your peak listening density usually concentrates on <strong>{predictions.mostActiveDayOfWeek}s</strong> around <strong>{formatHour(predictions.mostActiveHour)}</strong>, showing a stable habit. 
+                    Your peak listening density usually concentrates on <strong>{`${predictions.mostActiveDayOfWeek}s`}</strong> around <strong>{formatHour(predictions.mostActiveHour)}</strong>, showing a stable habit. 
                     Across your history, <strong>{predictions.mostActiveMonth}</strong> is your most active month, and your predicted top artist for the coming period is <strong>{predictions.predictedTopArtist.name}</strong>.
                 </p>
             </div>

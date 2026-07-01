@@ -2,14 +2,12 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } 
 import { useEffect } from 'react'
 
 import LandingPage from './pages/LandingPage'
-import SpotifyAccessPage from './pages/SpotifyAccessPage'
 import ManualAccessPage from './pages/ManualAccessPage'
 
 import UserLayout from './pages/app/UserLayout'
 import DashboardPage from './pages/app/DashboardPage'
 import AnalyticsPage from './pages/app/AnalyticsPage'
 import BIDashboardPage from './pages/app/BIDashboardPage'
-import CalendarPage from './pages/app/CalendarPage'
 import MusicDnaPage from './pages/app/MusicDnaPage'
 import TasteEvolutionPage from './pages/app/TasteEvolutionPage'
 import SpotifyLivePage from './pages/app/SpotifyLivePage'
@@ -18,8 +16,7 @@ import PublicProfilePage from './pages/app/PublicProfilePage'
 import ImportZipPage from './pages/app/ImportZipPage'
 import PredictionsPage from './pages/app/PredictionsPage'
 import SocialPage from './pages/app/SocialPage'
-import MOBDPage from './pages/app/MOBDPage'
-import StatsPage from './pages/app/StatsPage'
+import MODBDPage from './pages/app/MODBDPage'
 import FriendsPage from './pages/app/FriendsPage'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminPage from './pages/AdminPage'
@@ -32,28 +29,19 @@ function LandingRoute() {
 
     return (
         <LandingPage
-            onSpotifyClick={() => navigate('/spotify-access')}
-            onManualClick={() => navigate('/manual-access')}
+            onLoginClick={() => navigate('/login')}
+            onRegisterClick={() => navigate('/register')}
         />
     )
 }
 
-function SpotifyAccessRoute() {
-    const navigate = useNavigate()
-
-    return (
-        <SpotifyAccessPage
-            onBackClick={() => navigate('/')}
-        />
-    )
-}
-
-function ManualAccessRoute() {
+function ManualAccessRoute({ initialMode = 'login' }) {
     const navigate = useNavigate()
     const { login } = useAuth()
 
     return (
         <ManualAccessPage
+            initialMode={initialMode}
             onBackClick={() => navigate('/')}
             onAuthSuccess={async (manualUserId) => {
                 await login(manualUserId, 'manual')
@@ -78,7 +66,7 @@ function SpotifyCallbackRoute() {
             return
         }
 
-        navigate('/spotify-access', { replace: true })
+        navigate('/', { replace: true })
     }, [searchParams, navigate, login])
 
     return (
@@ -106,8 +94,8 @@ function App() {
                 <Routes>
                     {/* Public */}
                     <Route path="/" element={<LandingRoute />} />
-                    <Route path="/spotify-access" element={<SpotifyAccessRoute />} />
-                    <Route path="/manual-access" element={<ManualAccessRoute />} />
+                    <Route path="/login" element={<ManualAccessRoute initialMode="login" />} />
+                    <Route path="/register" element={<ManualAccessRoute initialMode="register" />} />
                     <Route path="/spotify/callback" element={<SpotifyCallbackRoute />} />
 
                     {/* Role Router */}
@@ -124,9 +112,9 @@ function App() {
                     >
                         <Route path="dashboard" element={<DashboardPage />} />
                         <Route path="analytics" element={<AnalyticsPage />} />
-                        <Route path="stats" element={<StatsPage />} />
+                        <Route path="stats" element={<Navigate to="/app/dashboard" replace />} />
                         <Route path="bi-dashboard" element={<BIDashboardPage />} />
-                        <Route path="calendar" element={<CalendarPage />} />
+                        <Route path="calendar" element={<Navigate to="/app/bi-dashboard" replace />} />
                         <Route path="dna" element={<MusicDnaPage />} />
                         <Route path="evolution" element={<TasteEvolutionPage />} />
                         <Route path="spotify-live" element={<SpotifyLivePage />} />
@@ -148,7 +136,7 @@ function App() {
                         }
                     >
                         <Route index element={<AdminPage />} />
-                        <Route path="mobd" element={<MOBDPage />} />
+                        <Route path="modbd" element={<MODBDPage />} />
                     </Route>
 
                     {/* Catch-all */}

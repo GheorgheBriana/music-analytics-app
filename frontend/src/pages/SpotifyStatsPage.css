@@ -57,6 +57,29 @@
     margin-bottom: 24px;
 }
 
+.section-tabs.main-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    margin-left: -44px;
+    margin-right: -44px;
+    margin-top: 0;
+    margin-bottom: 24px;
+    padding: 16px 44px;
+    background: rgba(23, 25, 35, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 850px) {
+    .section-tabs.main-tabs {
+        margin-left: -24px;
+        margin-right: -24px;
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
 .tab-btn {
     background: rgba(255, 255, 255, 0.03);
     color: #c7c7d1;

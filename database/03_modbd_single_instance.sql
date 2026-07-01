@@ -1,5 +1,5 @@
 -- =============================================================================
--- 08_mobd_demo.sql - Demonstrație MOBD (Single-Instance PostgreSQL)
+-- 08_modbd_demo.sql - Demonstrație MODBD (Single-Instance PostgreSQL)
 -- =============================================================================
 
 -- SECȚIUNEA 1: FRAGMENTARE VERTICALĂ
@@ -126,16 +126,16 @@ FOR EACH ROW EXECUTE FUNCTION oltp.fn_sync_genres_replica();
 -- Rulați comenzile de mai jos secvențial pentru a verifica comportamentul.
 
 -- TEST 1: Sincronizare la INSERT în genres
--- INSERT INTO oltp.genres (name) VALUES ('mobd-test-genre');
--- SELECT id, name, replicated_at FROM oltp.genres_replica WHERE name = 'mobd-test-genre';
+-- INSERT INTO oltp.genres (name) VALUES ('modbd-test-genre');
+-- SELECT id, name, replicated_at FROM oltp.genres_replica WHERE name = 'modbd-test-genre';
 
 -- TEST 2: Sincronizare la UPDATE în genres
--- UPDATE oltp.genres SET name = 'mobd-test-updated' WHERE name = 'mobd-test-genre';
--- SELECT id, name, replicated_at FROM oltp.genres_replica WHERE name LIKE 'mobd-test%';
+-- UPDATE oltp.genres SET name = 'modbd-test-updated' WHERE name = 'modbd-test-genre';
+-- SELECT id, name, replicated_at FROM oltp.genres_replica WHERE name LIKE 'modbd-test%';
 
 -- TEST 3: Sincronizare la DELETE în genres
--- DELETE FROM oltp.genres WHERE name = 'mobd-test-updated';
--- SELECT * FROM oltp.genres_replica WHERE name LIKE 'mobd-test%';
+-- DELETE FROM oltp.genres WHERE name = 'modbd-test-updated';
+-- SELECT * FROM oltp.genres_replica WHERE name LIKE 'modbd-test%';
 
 -- TEST 4: Vizualizare date din fragmentele fizice
 -- SELECT 'sec' AS fragment, user_id, api_key, last_login_ip FROM oltp.user_profile_sec
@@ -147,9 +147,9 @@ FOR EACH ROW EXECUTE FUNCTION oltp.fn_sync_genres_replica();
 
 -- TEST 6: UPDATE transparent pe view-ul logic (rutează automat în ambele fragmente)
 -- UPDATE oltp.v_user_profile
--- SET bio = 'Demonstratie INSTEAD OF trigger MOBD',
+-- SET bio = 'Demonstratie INSTEAD OF trigger MODBD',
 --     favorite_genre = 'electronic',
---     api_key = 'test-api-key-mobd',
+--     api_key = 'test-api-key-modbd',
 --     last_login_ip = '127.0.0.1',
 --     last_login_at = CURRENT_TIMESTAMP
 -- WHERE user_id = 1; -- <-- Înlocuiește cu un ID valid de utilizator

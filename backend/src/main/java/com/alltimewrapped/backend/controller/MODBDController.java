@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/mobd")
+@RequestMapping("/api/modbd")
 @RequiredArgsConstructor
-public class MOBDController {
+public class MODBDController {
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -117,9 +117,9 @@ public class MOBDController {
     @Transactional
     public Map<String, Object> deleteGenre(@PathVariable Long id) {
         try {
-            // Obținem numele genului pentru a ne asigura că este gen de test/demo (mobd- sau test-)
+            // Obținem numele genului pentru a ne asigura că este gen de test/demo (modbd- sau test-)
             String name = jdbcTemplate.queryForObject("SELECT name FROM oltp.genres WHERE id = ?", String.class, id);
-            if (name != null && (name.startsWith("mobd-") || name.startsWith("test-"))) {
+            if (name != null && (name.startsWith("modbd-") || name.startsWith("test-"))) {
                 // Ștergem mai întâi legăturile din track_genres pentru a preveni erori de foreign key în Postgres
                 jdbcTemplate.update("DELETE FROM oltp.track_genres WHERE genre_id = ?", id);
                 

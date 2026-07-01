@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { mobdApi } from '../../api/mobdApi'
-import './MOBDPage.css'
+import { modbdApi } from '../../api/modbdApi'
+import './MODBDPage.css'
 
-function MOBDPage() {
+function MODBDPage() {
     const [profiles, setProfiles] = useState([])
     const [secFragments, setSecFragments] = useState([])
     const [dataFragments, setDataFragments] = useState([])
@@ -19,15 +19,15 @@ function MOBDPage() {
     const [distRegion, setDistRegion] = useState('RO')
 
     const [selectedUser, setSelectedUser] = useState(1)
-    const [bio, setBio] = useState('MOBD INSTEAD OF trigger demonstration')
+    const [bio, setBio] = useState('MODBD INSTEAD OF trigger demonstration')
     const [favGenre, setFavGenre] = useState('electronic')
-    const [apiKey, setApiKey] = useState('test-api-key-mobd')
+    const [apiKey, setApiKey] = useState('test-api-key-modbd')
     const [loginIp, setLoginIp] = useState('127.0.0.1')
     
     const [newGenreName, setNewGenreName] = useState('')
     const [activeTab, setActiveTab] = useState('vertical')
     const [message, setMessage] = useState('')
-    const [sqlLog, setSqlLog] = useState([])
+    const [sqlLog, setSqlLog] = useState(['-- Ready. Execute an action to see generated SQL.'])
     const [dbResilienceStatus, setDbResilienceStatus] = useState({
         genres: { status: 'success', message: '' },
         dist: { status: 'success', message: '' }
@@ -61,6 +61,12 @@ function MOBDPage() {
         }
     };
 
+    const maskApiKey = (key) => {
+        if (!key) return 'null';
+        if (key.length <= 8) return '********';
+        return `${key.slice(0, 8)}...${key.slice(-3)}`;
+    };
+
     const addSqlLog = (statement) => {
         setSqlLog(prev => [statement, ...prev.slice(0, 9)])
     }
@@ -68,7 +74,7 @@ function MOBDPage() {
     const fetchData = async () => {
         try {
             // Fetch profiles view
-            const profilesData = await mobdApi.getProfiles()
+            const profilesData = await modbdApi.getProfiles()
             setProfiles(profilesData)
             if (profilesData && profilesData.length > 0) {
                 const first = profilesData[0]
@@ -80,21 +86,21 @@ function MOBDPage() {
             }
 
             // Fetch profile fragments
-            const frags = await mobdApi.getProfileFragments()
+            const frags = await modbdApi.getProfileFragments()
             setSecFragments(frags.sec || [])
             setDataFragments(frags.data || [])
 
             // Fetch replicated genres
-            const gData = await mobdApi.getReplicatedGenres()
+            const gData = await modbdApi.getReplicatedGenres()
             setGenres(gData.genres || [])
             setReplicas(gData.replica || [])
 
             // Fetch global listening records
-            const distData = await mobdApi.getGlobalListeningRecords()
+            const distData = await modbdApi.getGlobalListeningRecords()
             setListeningRecords(distData.records || distData || [])
 
             // Fetch horizontal fragments
-            const distFrags = await mobdApi.getHorizontalFragments()
+            const distFrags = await modbdApi.getHorizontalFragments()
             setAmRecords(distFrags.am || [])
             setEuRecords(distFrags.eu || [])
 
@@ -110,7 +116,7 @@ function MOBDPage() {
                 }
             })
         } catch (err) {
-            console.error('Error fetching MOBD data:', err)
+            console.error('Error fetching MODBD data:', err)
         }
     }
 
@@ -126,6 +132,12 @@ function MOBDPage() {
         addSqlLog(updateStatement)
 
         try {
+            await modbdApi.updateProfile(selectedUser, {
+                bio: bio,
+                favorite_genre: favGenre,
+                api_key: apiKey,
+                last_login_ip: loginIp
+            })
             setMessage('Success! The transparent update was processed via view.')
             fetchData()
         } catch (err) {
@@ -138,15 +150,15 @@ function MOBDPage() {
         if (!newGenreName) return
         
         let finalGenreName = newGenreName.trim().toLowerCase();
-        if (!finalGenreName.startsWith('mobd-') && !finalGenreName.startsWith('test-')) {
-            finalGenreName = 'mobd-' + finalGenreName;
+        if (!finalGenreName.startsWith('modbd-') && !finalGenreName.startsWith('test-')) {
+            finalGenreName = 'modbd-' + finalGenreName;
         }
         
         const insertStatement = `INSERT INTO oltp.genres (name) VALUES ('${finalGenreName}');`
         addSqlLog(insertStatement)
 
         try {
-            await mobdApi.createGenre({ name: finalGenreName })
+            await modbdApi.createGenre({ name: finalGenreName })
             setNewGenreName('')
             fetchData()
         } catch (err) {
@@ -159,7 +171,7 @@ function MOBDPage() {
         addSqlLog(deleteStatement)
 
         try {
-            await mobdApi.deleteGenre(id)
+            await modbdApi.deleteGenre(id)
             fetchData()
         } catch (err) {
             console.error(err)
@@ -174,7 +186,7 @@ function MOBDPage() {
         addSqlLog(insertStatement)
 
         try {
-            await mobdApi.createListeningRecord({ userId: distUserId, trackId: distTrackId, msPlayed: distMsPlayed, region: distRegion })
+            await modbdApi.createListeningRecord({ userId: distUserId, trackId: distTrackId, msPlayed: distMsPlayed, region: distRegion })
             const isEurope = ['RO', 'DE', 'FR', 'ES', 'IT', 'UK', 'EU'].includes(distRegion);
             const msg = `Success! The record was automatically routed via INSTEAD OF trigger to: ${isEurope ? `EU Node (Europe - Country ${distRegion})` : `AM Node (America - Country ${distRegion})`}`
             setMessage(msg)
@@ -185,13 +197,13 @@ function MOBDPage() {
     }
 
     return (
-        <div className="mobd-container">
-            <div className="mobd-header">
-                <h2>📐 MOBD Control Center</h2>
+        <div className="modbd-container">
+            <div className="modbd-header">
+                <h2>📐 MODBD Control Center</h2>
                 <p>Interactive Demonstration of Distributed Database Concepts in PostgreSQL</p>
             </div>
 
-            <div className="mobd-navigation">
+            <div className="modbd-navigation">
                 <button 
                     className={`nav-tab-btn ${activeTab === 'vertical' ? 'active' : ''}`}
                     onClick={() => {
@@ -259,8 +271,8 @@ function MOBDPage() {
             )}
 
             {activeTab === 'vertical' && (
-                <div className="mobd-grid">
-                    <div className="mobd-card form-card">
+                <div className="modbd-grid">
+                    <div className="modbd-card form-card">
                         <h3>Transparent Update via View</h3>
                         <p className="card-desc">
                             Update the view <code>oltp.v_user_profile</code>. The <code>INSTEAD OF</code> trigger will automatically distribute data to the underlying physical tables.
@@ -316,7 +328,7 @@ function MOBDPage() {
                         </form>
                     </div>
 
-                    <div className="mobd-card tables-card">
+                    <div className="modbd-card tables-card">
                         <h3>1. Inspect Underlying Physical Tables (Fragments)</h3>
                         <div className="split-view">
                             <div>
@@ -330,7 +342,7 @@ function MOBDPage() {
                                             {secFragments.map(f => (
                                                 <tr key={f.user_id}>
                                                     <td>{f.user_id}</td>
-                                                    <td>{f.api_key || 'null'}</td>
+                                                    <td>{maskApiKey(f.api_key)}</td>
                                                     <td>{f.last_login_ip || 'null'}</td>
                                                 </tr>
                                             ))}
@@ -380,7 +392,7 @@ function MOBDPage() {
                                             <td>{p.user_id}</td>
                                             <td>{p.username}</td>
                                             <td><span className={`badge ${p.role}`}>{p.role}</span></td>
-                                            <td>{p.api_key || 'null'}</td>
+                                            <td>{maskApiKey(p.api_key)}</td>
                                             <td>{p.bio || 'null'}</td>
                                             <td>{p.favorite_genre || 'null'}</td>
                                         </tr>
@@ -393,8 +405,8 @@ function MOBDPage() {
             )}
 
             {activeTab === 'replication' && (
-                <div className="mobd-grid">
-                    <div className="mobd-card form-card">
+                <div className="modbd-grid">
+                    <div className="modbd-card form-card">
                         <h3>Data Replication Simulation (AFTER Trigger)</h3>
                         <p className="card-desc">
                             Inserting or deleting a genre in the master table <code>oltp.genres</code> will activate the trigger <code>trg_sync_genres_replica</code>, duplicating data instantly into <code>oltp.genres_replica</code>.
@@ -414,7 +426,7 @@ function MOBDPage() {
                         </form>
                     </div>
 
-                    <div className="mobd-card tables-card">
+                    <div className="modbd-card tables-card">
                         <h3>Replicated Tables (Real-Time Synchronization)</h3>
                         <div className="split-view">
                             <div>
@@ -428,7 +440,7 @@ function MOBDPage() {
                                                     <td>{g.id}</td>
                                                     <td>{g.name}</td>
                                                     <td>
-                                                        {(g.name.startsWith('mobd-') || g.name.startsWith('test-')) ? (
+                                                        {(g.name.startsWith('modbd-') || g.name.startsWith('test-')) ? (
                                                             <button 
                                                                 className="delete-small-btn"
                                                                 onClick={() => handleDeleteGenre(g.id, g.name)}
@@ -469,8 +481,8 @@ function MOBDPage() {
             )}
 
             {activeTab === 'distributed' && (
-                <div className="mobd-grid">
-                    <div className="mobd-card form-card">
+                <div className="modbd-grid">
+                    <div className="modbd-card form-card">
                         <h3>Automatic Trans-Server Routing (FDW)</h3>
                         <p className="card-desc">
                             Insert into the global view <code>oltp.v_listening_records_global</code>. The <code>INSTEAD OF</code> trigger will automatically route the record based on the <strong>Connection Country (Real Geolocation - Geo-Partitioning)</strong>:
@@ -534,7 +546,7 @@ function MOBDPage() {
                         </form>
                     </div>
 
-                    <div className="mobd-card tables-card">
+                    <div className="modbd-card tables-card">
                         <h3>Physical Distribution of Horizontal Fragments</h3>
                         <div className="split-view">
                             <div>
@@ -615,7 +627,7 @@ function MOBDPage() {
                 </div>
             )}
 
-            <div className="mobd-sql-log">
+            <div className="modbd-sql-log">
                 <h3>💻 SQL Execution Console</h3>
                 <p className="card-desc">SQL statements executed automatically in the background to simulate transparency and replication:</p>
                 <div className="log-console">
@@ -632,4 +644,4 @@ function MOBDPage() {
     )
 }
 
-export default MOBDPage
+export default MODBDPage

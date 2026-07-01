@@ -1,5 +1,5 @@
 -- =============================================================================
--- 05_mobd_am_setup.sql - De executat PE INSTANȚA AM (port 5432 / container sau host native)
+-- 05_modbd_am_setup.sql - De executat PE INSTANȚA AM (port 5432 / container sau host native)
 -- =============================================================================
 
 -- Pas 1: Activare extensie postgres_fdw

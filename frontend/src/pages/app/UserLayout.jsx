@@ -101,7 +101,7 @@ function UserLayout() {
                         to="/app/dashboard"
                         className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
                     >
-                        Dashboard
+                        Overview
                     </NavLink>
 
                     <NavLink
@@ -111,13 +111,6 @@ function UserLayout() {
                         Analytics
                     </NavLink>
 
-                    <NavLink
-                        to="/app/stats"
-                        className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
-                    >
-                        Stats
-                    </NavLink>
-
 
 
                     <NavLink
@@ -125,13 +118,6 @@ function UserLayout() {
                         className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
                     >
                         BI Dashboard
-                    </NavLink>
-
-                    <NavLink
-                        to="/app/calendar"
-                        className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
-                    >
-                        Calendar
                     </NavLink>
 
                     <NavLink

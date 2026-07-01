@@ -66,21 +66,26 @@ public class SpotifyDataService {
 
     // Calls Spotify using the user's access token
     private Object callSpotifyApi(String accessToken, String url) {
-        RestTemplate restTemplate = new RestTemplate();
+        try {
+            RestTemplate restTemplate = new RestTemplate();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(accessToken);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(accessToken);
 
-        HttpEntity<Void> request = new HttpEntity<>(headers);
+            HttpEntity<Void> request = new HttpEntity<>(headers);
 
-        ResponseEntity<Object> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                request,
-                Object.class
-        );
+            ResponseEntity<Object> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    request,
+                    Object.class
+            );
 
-        return response.getBody();
+            return response.getBody();
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(SpotifyDataService.class).warn("Spotify API request failed for URL {}: {}", url, e.getMessage());
+            return java.util.Collections.emptyMap();
+        }
     }
 
     // Returns the Spotify profile information saved for the logged-in user

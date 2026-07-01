@@ -30,6 +30,11 @@ public class SocialService {
 
     private static final int MIN_ABSOLUTE_PLAYS = 5;
 
+    private static final Set<String> NOISE_GENRES = Set.of(
+            "unknown", "special purpose artist", "added for google code-in 2016",
+            "maxproduction", "tuvan", "china"
+    );
+
     @Transactional(readOnly = true)
     public List<UserDTO> getAllUsers() {
         return appUserRepository.findAll().stream()
@@ -135,6 +140,7 @@ public class SocialService {
 
         Map<String, Double> genreMap1 = u1GenreRows.stream()
                 .filter(r -> r.get("genre_name") != null && !((String) r.get("genre_name")).trim().isEmpty())
+                .filter(r -> !NOISE_GENRES.contains(((String) r.get("genre_name")).toLowerCase().trim()))
                 .collect(Collectors.toMap(
                         r -> (String) r.get("genre_name"),
                         r -> ((Number) r.get("play_count")).doubleValue(),
@@ -143,6 +149,7 @@ public class SocialService {
 
         Map<String, Double> genreMap2 = u2GenreRows.stream()
                 .filter(r -> r.get("genre_name") != null && !((String) r.get("genre_name")).trim().isEmpty())
+                .filter(r -> !NOISE_GENRES.contains(((String) r.get("genre_name")).toLowerCase().trim()))
                 .collect(Collectors.toMap(
                         r -> (String) r.get("genre_name"),
                         r -> ((Number) r.get("play_count")).doubleValue(),
@@ -204,6 +211,7 @@ public class SocialService {
                 ));
 
         DimensionScoreDTO rhythmScore = calculateDimensionScore(rhythmMap1, rhythmMap2);
+        rhythmScore.setFinalPercent((int) Math.round(rhythmScore.getCosine() * 100));
 
         // Final score: Weighted average of the 4 dimensions' final percents
         // 40% Artists + 30% Tracks + 20% Genres + 10% Rhythm
@@ -217,11 +225,14 @@ public class SocialService {
         // 5. Collaborative Filtering Recommendations: Tracks User 2 (Friend) has listened to that User 1 (Me) hasn't
         String recommendationsSql = """
                 WITH user1_tracks AS (
-                    SELECT DISTINCT t2.track_name
+                    SELECT DISTINCT t2.track_name, a2.artist_name
                     FROM dw.dw_fact_listening_event f2
                     JOIN dw.dw_dim_track t2 ON f2.track_key = t2.track_key
+                    JOIN dw.dw_dim_artist a2 ON f2.artist_key = a2.artist_key
                     JOIN dw.dw_dim_user u2 ON f2.user_key = u2.user_key
                     WHERE u2.original_user_id = ?
+                      AND t2.track_name IS NOT NULL
+                      AND a2.artist_name IS NOT NULL
                 )
                 SELECT t.track_name, a.artist_name, COUNT(*) AS plays
                 FROM dw.dw_fact_listening_event f
@@ -229,7 +240,13 @@ public class SocialService {
                 JOIN dw.dw_dim_artist a ON f.artist_key = a.artist_key
                 JOIN dw.dw_dim_user u ON f.user_key = u.user_key
                 WHERE u.original_user_id = ?
-                  AND t.track_name NOT IN (SELECT track_name FROM user1_tracks)
+                  AND t.track_name IS NOT NULL
+                  AND a.artist_name IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM user1_tracks ut
+                      WHERE ut.track_name = t.track_name
+                        AND ut.artist_name = a.artist_name
+                  )
                 GROUP BY t.track_name, a.artist_name
                 ORDER BY plays DESC
                 LIMIT 5

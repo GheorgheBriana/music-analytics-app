@@ -38,6 +38,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 
+import org.springframework.cache.CacheManager;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -48,6 +50,7 @@ public class ImportService {
     private final ListeningRecordRepository listeningRecordRepository;
     private final JdbcTemplate jdbcTemplate;
     private final SimpMessagingTemplate messagingTemplate;
+    private final CacheManager cacheManager;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -155,6 +158,16 @@ public class ImportService {
                 duplicateRecords,
                 skippedRecords
         );
+
+        // Clear stats caches so that the frontend overview immediately displays the new data without showing stale empty cards
+        if (cacheManager != null) {
+            for (String cacheName : List.of("userStats", "dailyActivity", "periodStats", "evolution", "discovery")) {
+                org.springframework.cache.Cache cache = cacheManager.getCache(cacheName);
+                if (cache != null) {
+                    cache.clear();
+                }
+            }
+        }
 
         return new ImportResultResponse(
                 processedFiles,

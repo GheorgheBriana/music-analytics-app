@@ -36,11 +36,11 @@ function AdminLayout() {
                     </NavLink>
 
                     <NavLink
-                        to="/app/admin/mobd"
+                        to="/app/admin/modbd"
                         className={({ isActive }) => isActive ? 'tab-btn active' : 'tab-btn'}
                         style={({ isActive }) => isActive ? { backgroundColor: 'rgba(255, 68, 68, 0.1)', color: '#ff4444', borderColor: 'rgba(255, 68, 68, 0.5)' } : {}}
                     >
-                        📐 MOBD Admin
+                        MODBD Admin
                     </NavLink>
                     
                     <a 

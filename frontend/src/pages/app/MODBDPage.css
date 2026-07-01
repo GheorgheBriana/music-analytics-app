@@ -1,16 +1,16 @@
-.mobd-container {
+.modbd-container {
     padding: 20px 0;
     color: #f1f3f9;
     font-family: 'Outfit', 'Inter', sans-serif;
 }
 
-.mobd-header {
+.modbd-header {
     margin-bottom: 25px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding-bottom: 15px;
 }
 
-.mobd-header h2 {
+.modbd-header h2 {
     font-size: 2rem;
     font-weight: 700;
     color: #3b82f6;
@@ -18,13 +18,13 @@
     letter-spacing: -0.5px;
 }
 
-.mobd-header p {
+.modbd-header p {
     color: #94a3b8;
     margin: 0;
     font-size: 1rem;
 }
 
-.mobd-navigation {
+.modbd-navigation {
     display: flex;
     gap: 10px;
     margin-bottom: 25px;
@@ -58,7 +58,7 @@
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
 }
 
-.mobd-grid {
+.modbd-grid {
     display: grid;
     grid-template-columns: 1fr 2fr;
     gap: 20px;
@@ -66,12 +66,12 @@
 }
 
 @media (max-width: 1100px) {
-    .mobd-grid {
+    .modbd-grid {
         grid-template-columns: 1fr;
     }
 }
 
-.mobd-card {
+.modbd-card {
     background: rgba(30, 41, 59, 0.5);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -81,7 +81,7 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
 }
 
-.mobd-card h3 {
+.modbd-card h3 {
     font-size: 1.3rem;
     font-weight: 600;
     margin: 0 0 10px 0;
@@ -261,7 +261,7 @@ tr:last-child td {
     color: #ffffff;
 }
 
-.mobd-sql-log {
+.modbd-sql-log {
     background: #0f172a;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
@@ -270,7 +270,7 @@ tr:last-child td {
     margin-top: 25px;
 }
 
-.mobd-sql-log h3 {
+.modbd-sql-log h3 {
     font-size: 1.1rem;
     font-weight: 600;
     color: #38bdf8;

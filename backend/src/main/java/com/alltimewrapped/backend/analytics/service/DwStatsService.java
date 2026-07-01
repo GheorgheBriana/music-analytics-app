@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,9 +86,10 @@ public class DwStatsService {
     }
 
     public List<Map<String, Object>> getTopGenres(Long userId) {
+        String whereClause = userId != null ? " WHERE original_user_id = ? AND LOWER(genre_name) <> 'unknown' " : " WHERE LOWER(genre_name) <> 'unknown' ";
         String sql = "SELECT genre_name AS \"genreName\", total_plays AS \"totalPlays\", total_minutes AS \"totalMinutes\" " +
-                     "FROM dw.mv_top_genres " + mvUserWhere(userId) +
-                     " ORDER BY total_minutes DESC LIMIT 10";
+                     "FROM dw.mv_top_genres " + whereClause +
+                     " ORDER BY total_plays DESC LIMIT 10";
         return jdbcTemplate.queryForList(sql, params(userId));
     }
 
@@ -213,5 +215,6 @@ public class DwStatsService {
         jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY dw.mv_weekend_vs_weekday_stats");
         jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY dw.mv_top_genres");
         jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY dw.mv_listening_heatmap");
+        jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY dw.mv_artist_stats");
     }
 }

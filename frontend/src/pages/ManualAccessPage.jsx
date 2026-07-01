@@ -1,13 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './ManualAccessPage.css'
 
-function ManualAccessPage({ onBackClick, onAuthSuccess }) {
-    const [mode, setMode] = useState('login')
+function ManualAccessPage({ initialMode = 'login', onBackClick, onAuthSuccess }) {
+    const [mode, setMode] = useState(initialMode)
     const [username, setUsername] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+
+    // Sync mode state with initialMode prop when it changes
+    useEffect(() => {
+        setMode(initialMode)
+        setError('')
+    }, [initialMode])
 
     const isRegisterMode = mode === 'register'
 
@@ -93,11 +99,11 @@ function ManualAccessPage({ onBackClick, onAuthSuccess }) {
                     Back to landing page
                 </button>
 
-                <h1>Manual Mode</h1>
+                <h1>Sign In to All Time Wrapped</h1>
 
                 <p>
-                    Create a local account or log in to upload your Spotify ZIP archive
-                    without connecting your Spotify account.
+                    Log in or create a local account to import your Spotify extended listening history ZIP
+                    and explore your personalized analytics dashboard.
                 </p>
 
                 <div className="auth-tabs">
@@ -163,8 +169,8 @@ function ManualAccessPage({ onBackClick, onAuthSuccess }) {
                 <div className="manual-info-box">
                     <h2>What happens next?</h2>
                     <p>
-                        After logging in, you will go to your listening dashboard,
-                        where you can upload your Spotify ZIP file and generate your statistics.
+                        After logging in, you will enter the platform where you can navigate to the
+                        <strong> Import ZIP</strong> tab to upload your Spotify listening history and generate your analytics.
                     </p>
                 </div>
             </div>

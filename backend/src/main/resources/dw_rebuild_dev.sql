@@ -115,6 +115,15 @@ JOIN dw.dw_dim_user u ON f.user_key = u.user_key
 GROUP BY u.original_user_id, d.day_of_week, d.day_name, t.hour
 ORDER BY d.day_of_week, t.hour;
 
+DROP MATERIALIZED VIEW IF EXISTS dw.mv_artist_stats;
+CREATE MATERIALIZED VIEW dw.mv_artist_stats AS
+SELECT
+    artist_key,
+    COUNT(fact_id) AS total_plays,
+    COUNT(DISTINCT user_key) AS unique_listeners
+FROM dw.dw_fact_listening_event
+GROUP BY artist_key;
+
 -- Create Unique Indexes for Materialized Views to support CONCURRENT refreshes
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_monthly_listening_unique
     ON dw.mv_monthly_listening (original_user_id, year, month);
@@ -130,4 +139,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_top_genres_unique
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_listening_heatmap_unique
     ON dw.mv_listening_heatmap (original_user_id, day_of_week, hour);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_artist_stats_unique
+    ON dw.mv_artist_stats (artist_key);
 

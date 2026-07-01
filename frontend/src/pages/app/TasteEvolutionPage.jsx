@@ -104,15 +104,22 @@ function StreamGraph({ streams, months, colorScale }) {
                 const rawIdx = xScale.invert(mouseX);
                 const monthIdx = Math.max(0, Math.min(months.length - 1, Math.round(rawIdx)));
                 const monthName = months[monthIdx];
-                const valuePercent = d.data[monthIdx][d.key] * 100;
+                
+                const point = d[monthIdx];
+                const valuePercent = (point && point.data ? point.data[d.key] || 0 : 0) * 100;
 
                 // Human month name mapping helper
                 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                 let humanMonth = monthName;
-                try {
-                    const idx = parseInt(parts[1]) - 1;
-                    humanMonth = monthNames[idx] + ' ' + parts[0];
-                } catch(e) {}
+                if (monthName && monthName.includes('-')) {
+                    try {
+                        const parts = monthName.split('-');
+                        const idx = parseInt(parts[1]) - 1;
+                        if (idx >= 0 && idx < 12) {
+                            humanMonth = monthNames[idx] + ' ' + parts[0];
+                        }
+                    } catch(e) {}
+                }
 
                 tooltip.html(`
                     <div style="font-weight: 800; color: ${colorScale(d.key)}; font-size: 15px; margin-bottom: 6px; font-family: 'Outfit', sans-serif;">

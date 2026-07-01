@@ -1,5 +1,5 @@
 -- =============================================================================
--- 04_mobd_eu_setup.sql - De executat PE INSTANȚA EU (port 5433 / container music-analytics-db-eu)
+-- 04_modbd_eu_setup.sql - De executat PE INSTANȚA EU (port 5433 / container music-analytics-db-eu)
 -- =============================================================================
 
 -- Pas 1: Creare schemă locală

@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import com.alltimewrapped.backend.model.Genre;
 import com.alltimewrapped.backend.model.Track;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -46,6 +47,7 @@ public class StatsService {
 
     // builds the main statistics response for one user
     @Transactional(readOnly = true)
+    @Cacheable("userStats")
     public UserStatsResponse getUserStats(Long userId, LocalDate from, LocalDate to) {
         if (!appUserRepository.existsById(userId)) {
             throw new ResponseStatusException(
@@ -72,6 +74,7 @@ public class StatsService {
 
     // builds daily listening activity for the heatmap
     @Transactional(readOnly = true)
+    @Cacheable("dailyActivity")
     public List<DailyActivityDTO> getDailyActivity(Long userId, LocalDate from, LocalDate to) {
         if (!appUserRepository.existsById(userId)) {
             throw new ResponseStatusException(
@@ -680,6 +683,7 @@ public class StatsService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable("periodStats")
     public PeriodStatsDTO getPeriodStats(Long userId, String period, LocalDate anchor, LocalDate customStart, LocalDate customEnd) {
         if (!appUserRepository.existsById(userId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found with id: " + userId);
@@ -737,7 +741,7 @@ public class StatsService {
             currentEnd = latestDate;
             prevStart = oldestDate;
             prevEnd = oldestDate;
-            periodLabel = "All-Time";
+            periodLabel = "Lifetime";
         }
 
         PeriodStatsDTO.Metrics currentMetrics;
@@ -862,14 +866,15 @@ public class StatsService {
         }
 
         // Calculate trends
+        boolean isLifetime = "lifetime".equalsIgnoreCase(period);
         PeriodStatsDTO.Trends trends = PeriodStatsDTO.Trends.builder()
-                .streams(calculateTrendPercent(currentMetrics.getStreams(), prevMetrics.getStreams()))
-                .uniqueTracks(calculateTrendPercent(currentMetrics.getUniqueTracks(), prevMetrics.getUniqueTracks()))
-                .minutes(calculateTrendPercent(currentMetrics.getMinutes(), prevMetrics.getMinutes()))
-                .uniqueArtists(calculateTrendPercent(currentMetrics.getUniqueArtists(), prevMetrics.getUniqueArtists()))
-                .hours(calculateTrendPercent(currentMetrics.getHours(), prevMetrics.getHours()))
-                .uniqueAlbums(calculateTrendPercent(currentMetrics.getUniqueAlbums(), prevMetrics.getUniqueAlbums()))
-                .daysCount(calculateTrendPercent(currentMetrics.getDaysCount(), prevMetrics.getDaysCount()))
+                .streams(isLifetime ? null : calculateTrendPercent(currentMetrics.getStreams(), prevMetrics.getStreams()))
+                .uniqueTracks(isLifetime ? null : calculateTrendPercent(currentMetrics.getUniqueTracks(), prevMetrics.getUniqueTracks()))
+                .minutes(isLifetime ? null : calculateTrendPercent(currentMetrics.getMinutes(), prevMetrics.getMinutes()))
+                .uniqueArtists(isLifetime ? null : calculateTrendPercent(currentMetrics.getUniqueArtists(), prevMetrics.getUniqueArtists()))
+                .hours(isLifetime ? null : calculateTrendPercent(currentMetrics.getHours(), prevMetrics.getHours()))
+                .uniqueAlbums(isLifetime ? null : calculateTrendPercent(currentMetrics.getUniqueAlbums(), prevMetrics.getUniqueAlbums()))
+                .daysCount(isLifetime ? null : calculateTrendPercent(currentMetrics.getDaysCount(), prevMetrics.getDaysCount()))
                 .build();
 
         // Calculate isLatestPeriod and isOldestPeriod
@@ -947,10 +952,11 @@ public class StatsService {
               COALESCE(SUM(f.ms_played), 0) / 60000.0 AS minutes,
               COUNT(DISTINCT f.artist_key) AS unique_artists,
               COALESCE(SUM(f.ms_played), 0) / 3600000.0 AS hours,
-              COUNT(DISTINCT f.album_key) AS unique_albums,
+              COUNT(DISTINCT CASE WHEN al.album_name IS NOT NULL AND al.album_name <> '' AND al.album_name <> 'Unknown Album' THEN al.album_name END) AS unique_albums,
               COUNT(DISTINCT d.full_date) AS days_count
             FROM dw.dw_fact_listening_event f
             JOIN dw.dw_dim_date d ON f.date_key = d.date_key
+            JOIN dw.dw_dim_album al ON f.album_key = al.album_key
             WHERE f.user_key = ? AND d.full_date >= ? AND d.full_date <= ?
             """;
         return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> new PeriodStatsDTO.Metrics(
@@ -975,7 +981,7 @@ public class StatsService {
               COALESCE(SUM(r.ms_played), 0) / 60000.0 AS minutes,
               COUNT(DISTINCT t.artist_name) AS unique_artists,
               COALESCE(SUM(r.ms_played), 0) / 3600000.0 AS hours,
-              COUNT(DISTINCT COALESCE(t.album_name, '')) AS unique_albums,
+              COUNT(DISTINCT CASE WHEN t.album_name IS NOT NULL AND t.album_name <> '' AND t.album_name <> 'Unknown Album' THEN t.album_name END) AS unique_albums,
               COUNT(DISTINCT DATE(r.played_at)) AS days_count
             FROM oltp.listening_records r
             JOIN oltp.tracks t ON r.track_id = t.id

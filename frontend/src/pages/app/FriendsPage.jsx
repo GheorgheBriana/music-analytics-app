@@ -10,7 +10,7 @@ import './FriendsPage.css'
 function shouldShowBio(bio) {
     if (!bio) return false;
     const clean = bio.trim().toLowerCase();
-    return clean !== '' && clean !== 'null' && clean !== 'direct test bio' && clean !== 'test bio' && clean !== 'no bio yet';
+    return clean !== '' && clean !== 'null' && clean !== 'direct test bio' && clean !== 'test bio' && clean !== 'no bio yet' && clean !== 'bio descriere';
 }
 
 function FriendsPage() {

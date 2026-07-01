@@ -3,6 +3,8 @@ import { rebuildAnalyticsPipeline, runMusicBrainzEnrichment } from '../../api/an
 
 function AnalyticsPipelinePage() {
     const [enrichmentStatus, setEnrichmentStatus] = useState(null)
+    const [dwStats, setDwStats] = useState(null)
+    const [dwQuality, setDwQuality] = useState(null)
     const [pipelineResult, setPipelineResult] = useState(null)
     const [loading, setLoading] = useState(true)
     const [running, setRunning] = useState(false)
@@ -33,10 +35,36 @@ function AnalyticsPipelinePage() {
         } catch (_) {}
     }
 
+    async function loadDwData() {
+        try {
+            const userId = localStorage.getItem('userId') || localStorage.getItem('original_user_id')
+            const headers = { 'X-User-Id': userId || '' }
+            
+            const [statsRes, qualityRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/admin/dw/stats`, { headers }),
+                fetch(`${API_BASE_URL}/api/admin/dw/quality`, { headers })
+            ])
+
+            if (statsRes.ok) {
+                const statsData = await statsRes.json()
+                setDwStats(statsData)
+            }
+            if (qualityRes.ok) {
+                const qualityData = await qualityRes.json()
+                setDwQuality(qualityData)
+            }
+        } catch (err) {
+            console.error("Failed to load DW stats:", err)
+        }
+    }
+
     useEffect(() => {
         async function init() {
             setLoading(true)
-            await loadEnrichmentStatus()
+            await Promise.all([
+                loadEnrichmentStatus(),
+                loadDwData()
+            ])
             setLoading(false)
         }
         init()
@@ -51,6 +79,7 @@ function AnalyticsPipelinePage() {
 
             const result = await rebuildAnalyticsPipeline(backfillLimit, refreshLimit)
             setPipelineResult(result)
+            await loadDwData()
         } catch (error) {
             console.error("Error running pipeline:", error)
             setError(error.message || 'Analytics pipeline could not be executed.')
@@ -92,6 +121,7 @@ function AnalyticsPipelinePage() {
                 throw new Error('Failed to refresh materialized views.')
             }
             setMvRefreshResult('Materialized views refreshed successfully.')
+            await loadDwData()
         } catch (err) {
             setError(err.message || 'Could not refresh materialized views.')
         } finally {
@@ -198,6 +228,41 @@ function AnalyticsPipelinePage() {
                     Triggers transactional Spotify listening records propagation from OLTP schemas to analytical Data Warehouse schemas, including dimension building and Star Schema mapping.
                 </p>
 
+                {dwQuality && (
+                    <>
+                        <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                            <div className="admin-stat-card" style={{ padding: '10px' }}>
+                                <div className="stat-value" style={{ fontSize: '18px' }}>{dwQuality.oltpListeningRecordsCount.toLocaleString()}</div>
+                                <div className="stat-label" style={{ fontSize: '11px' }}>OLTP Records</div>
+                            </div>
+                            <div className="admin-stat-card" style={{ padding: '10px' }}>
+                                <div className="stat-value" style={{ fontSize: '18px', color: '#1db954' }}>{dwQuality.dwFactsCount.toLocaleString()}</div>
+                                <div className="stat-label" style={{ fontSize: '11px' }}>DW Facts (Sync)</div>
+                            </div>
+                            <div className="admin-stat-card" style={{ padding: '10px' }}>
+                                <div className="stat-value" style={{ fontSize: '18px', color: '#3b82f6' }}>{dwQuality.dwCoveragePercentage.toFixed(1)}%</div>
+                                <div className="stat-label" style={{ fontSize: '11px' }}>Sync Coverage</div>
+                            </div>
+                            {dwStats && (
+                                <>
+                                    <div className="admin-stat-card" style={{ padding: '10px' }}>
+                                        <div className="stat-value" style={{ fontSize: '18px' }}>{dwStats.totalTracks.toLocaleString()}</div>
+                                        <div className="stat-label" style={{ fontSize: '11px' }}>DW Tracks</div>
+                                    </div>
+                                    <div className="admin-stat-card" style={{ padding: '10px' }}>
+                                        <div className="stat-value" style={{ fontSize: '18px' }}>{dwStats.totalArtists.toLocaleString()}</div>
+                                        <div className="stat-label" style={{ fontSize: '11px' }}>DW Artists</div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="admin-progress-bar" style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden', marginBottom: '20px' }}>
+                            <div className="admin-progress-fill" style={{ height: '100%', background: '#3b82f6', width: `${Math.min(100, dwQuality.dwCoveragePercentage)}%`, transition: 'width 0.4s ease' }} />
+                        </div>
+                    </>
+                )}
+
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <span style={{ fontSize: '11px', color: '#a3a3a3' }}>Backfill Limit</span>
@@ -218,10 +283,10 @@ function AnalyticsPipelinePage() {
                         />
                     </div>
                     <button 
-                        className="admin-btn primary" 
-                        onClick={handleRunPipeline} 
-                        disabled={running} 
-                        style={{ margin: 'auto 0 0 auto', padding: '10px 20px' }}
+                            className="admin-btn primary" 
+                            onClick={handleRunPipeline} 
+                            disabled={running} 
+                            style={{ margin: 'auto 0 0 auto', padding: '10px 20px' }}
                     >
                         {running ? 'Running...' : 'Run Global Pipeline'}
                     </button>

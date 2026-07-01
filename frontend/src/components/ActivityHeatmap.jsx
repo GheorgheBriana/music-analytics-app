@@ -133,14 +133,14 @@ function ActivityHeatmap({ data, selectedYear, availableYears, onYearChange }) {
     const weeks = groupDaysByWeek(days)
 
     return (
-        <div className="heatmap-card">
-            <div className="heatmap-header">
+        <div className="activity-heatmap-card">
+            <div className="activity-heatmap-header">
                 <div>
                     <h3>Listening Activity Heatmap</h3>
                     <p>Your daily listening activity for the selected year.</p>
                 </div>
 
-                <div className="heatmap-controls">
+                <div className="activity-heatmap-controls">
                     <label>
                         Year
                         <select
@@ -159,29 +159,29 @@ function ActivityHeatmap({ data, selectedYear, availableYears, onYearChange }) {
                         </select>
                     </label>
 
-                    <div className="heatmap-legend">
+                    <div className="activity-heatmap-legend">
                         <span>Less</span>
-                        <div className="legend-box level-0" />
-                        <div className="legend-box level-1" />
-                        <div className="legend-box level-2" />
-                        <div className="legend-box level-3" />
-                        <div className="legend-box level-4" />
+                        <div className="activity-legend-box level-0" />
+                        <div className="activity-legend-box level-1" />
+                        <div className="activity-legend-box level-2" />
+                        <div className="activity-legend-box level-3" />
+                        <div className="activity-legend-box level-4" />
                         <span>More</span>
                     </div>
                 </div>
             </div>
 
-            <div className="heatmap-scroll">
-                <div className="heatmap-months">
+            <div className="activity-heatmap-scroll">
+                <div className="activity-heatmap-months">
                     {weeks.map((week, index) => (
-                        <span className="heatmap-month-label" key={`month-${index}`}>
+                        <span className="activity-heatmap-month-label" key={`month-${index}`}>
                             {getMonthLabelForWeek(week, weeks[index - 1])}
                         </span>
                     ))}
                 </div>
 
-                <div className="heatmap-body">
-                    <div className="heatmap-weekdays">
+                <div className="activity-heatmap-body">
+                    <div className="activity-heatmap-weekdays">
                         <span>Sun</span>
                         <span>Mon</span>
                         <span>Tue</span>
@@ -191,14 +191,14 @@ function ActivityHeatmap({ data, selectedYear, availableYears, onYearChange }) {
                         <span>Sat</span>
                     </div>
 
-                    <div className="heatmap-grid">
+                    <div className="activity-heatmap-grid">
                         {weeks.map((week, weekIndex) => (
-                            <div className="heatmap-week" key={weekIndex}>
+                            <div className="activity-heatmap-week" key={weekIndex}>
                                 {week.map((day, dayIndex) => {
                                     if (!day) {
                                         return (
                                             <div
-                                                className="heatmap-empty-day"
+                                                className="activity-heatmap-empty-day"
                                                 key={`empty-${weekIndex}-${dayIndex}`}
                                             />
                                         )
@@ -213,7 +213,7 @@ function ActivityHeatmap({ data, selectedYear, availableYears, onYearChange }) {
 
                                     return (
                                         <div
-                                            className={`heatmap-day ${getColorLevel(playCount)}`}
+                                            className={`activity-heatmap-day ${getColorLevel(playCount)}`}
                                             key={dateKey}
                                             title={`${formatDate(day)} • ${playCount} plays • ${totalMinutes} min`}
                                         />

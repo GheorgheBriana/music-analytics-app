@@ -4,6 +4,12 @@ import { getMyFriends } from '../../api/friendsApi'
 import { compareUsers } from '../../api/socialApi'
 import './SocialPage.css'
 
+function shouldShowBio(bio) {
+    if (!bio) return false;
+    const clean = bio.trim().toLowerCase();
+    return clean !== '' && clean !== 'null' && clean !== 'direct test bio' && clean !== 'test bio' && clean !== 'no bio yet' && clean !== 'bio descriere';
+}
+
 function SocialPage() {
     const [searchParams] = useSearchParams()
     const compareWith = searchParams.get('compareWith')
@@ -127,7 +133,7 @@ function SocialPage() {
                                 <span className="score-value">{comparison.similarityScore}%</span>
                                 <span className="score-label">Compatibility</span>
                             </div>
-                            {selectedFriend && (selectedFriend.favoriteGenre || selectedFriend.bio) && (
+                            {selectedFriend && (selectedFriend.favoriteGenre || shouldShowBio(selectedFriend.bio)) && (
                                 <div className="friend-taste-preview" style={{ marginTop: '20px', background: 'rgba(255, 255, 255, 0.03)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: '280px', margin: '20px auto 0 auto' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <div className="friend-avatar" style={{ width: '32px', height: '32px', fontSize: '14px', margin: 0, borderRadius: '50%', overflow: 'hidden', background: 'linear-gradient(135deg, #1db954, #0a5527)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', flexShrink: 0 }}>
@@ -142,7 +148,7 @@ function SocialPage() {
                                             <div style={{ fontSize: '13px', color: '#1db954', fontWeight: 'bold' }}>{selectedFriend.favoriteGenre || 'unknown'}</div>
                                         </div>
                                     </div>
-                                    {selectedFriend.bio && (
+                                    {shouldShowBio(selectedFriend.bio) && (
                                         <p style={{ fontSize: '12px', color: '#aeb3c5', fontStyle: 'italic', margin: 0, textAlign: 'left', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '6px' }}>
                                             "{selectedFriend.bio}"
                                         </p>
@@ -152,37 +158,26 @@ function SocialPage() {
                         </div>
 
                         {/* Academic Explanation Card */}
-                        <div className="academic-explainer-card">
-                            <div className="explainer-header">
-                                <span className="explainer-icon">🔬</span>
-                                <h4>Academic Similarity Engine</h4>
+                        <div className="academic-explainer-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                                <h4 style={{ margin: 0, fontSize: '16px', color: '#fff' }}>Hybrid Similarity Engine</h4>
+                                <span title="Jaccard Index: J(A, B) = |A ∩ B| / |A ∪ B|&#10;Cosine Similarity: Cosine(A, B) = (A · B) / (||A|| × ||B||)" style={{ cursor: 'help', borderBottom: '1px dotted #1db954', fontSize: '13px', color: '#1db954', fontWeight: 'bold' }}>[Math Formulas]</span>
                             </div>
-                            <p className="explainer-desc">
-                                To achieve rigorous mathematical comparison for your dissertation, this module computes a <strong>hybrid similarity model</strong> combining two classical set-theoretic and vector-space algorithms across all listening events:
+                            <p style={{ margin: '0 0 16px 0', color: '#a8a8b8', fontSize: '13px', lineHeight: 1.6 }}>
+                                This engine computes a hybrid similarity model combining catalog overlap and listening intensity across all historical events.
                             </p>
-                            <div className="algorithm-details">
-                                <div className="algo-item">
-                                    <h5>📐 Jaccard Similarity (Binary Catalog Overlap)</h5>
-                                    <div className="formula">J(A, B) = |A ∩ B| / |A ∪ B|</div>
-                                    <p>Measures the shared unique items (presence/absence) relative to your combined total library. Ignores listening frequencies.</p>
-                                </div>
-                                <div className="algo-item">
-                                    <h5>📊 Cosine Similarity (Weighted Play Frequencies)</h5>
-                                    <div className="formula">Cosine(A, B) = (A · B) / (||A|| × ||B||)</div>
-                                    <p>Projects all tracks/artists into high-dimensional frequency vectors. Measures the cosine of the angle between them, focusing on play-count intensity and style alignment.</p>
-                                </div>
-                            </div>
-                            <div className="formula-summary">
-                                <strong>🧬 Weighted Multi-Dimensional Score:</strong>
+                            <div style={{ background: 'rgba(29, 185, 84, 0.05)', border: '1px solid rgba(29, 185, 84, 0.15)', borderRadius: '10px', padding: '12px 16px', fontSize: '12px', color: '#1db954' }}>
+                                <strong>Weighted Multi-Dimensional Score:</strong>
                                 <br />
-                                <code>40% Artists + 30% Tracks + 20% Genres + 10% Rhythm</code>
+                                <code style={{ color: '#e2e8f0', fontWeight: 'bold', fontFamily: 'monospace' }}>40% Artists + 30% Tracks + 20% Genres + 10% Rhythm</code>
                             </div>
                         </div>
                     </div>
 
                     {/* Double Progress Bars for 4 Dimensions */}
                     <div className="dimensions-grid-container">
-                        <h4 className="section-title">📊 Multi-Dimensional Taste Breakdown</h4>
+                        <h4 className="section-title">Multi-Dimensional Taste Breakdown</h4>
+                        <p className="section-subtitle">A dimensional breakdown of catalog overlap and listening intensity compared to your friend.</p>
                         <div className="dimensions-grid">
                             {[
                                 { name: 'Artists', score: comparison.artistScore, weight: '40%', icon: '👤' },
@@ -194,42 +189,39 @@ function SocialPage() {
                                 const cosinePct = Math.round((dim.score?.cosine || 0) * 100);
                                 const finalPercent = dim.score?.finalPercent || 0;
                                 return (
-                                    <div key={`dim-${idx}`} className="dimension-card">
+                                    <div key={`dim-${idx}`} className="dimension-card" title={
+                                        dim.name === 'Listening Rhythm'
+                                            ? "Rhythm similarity measures the cosine alignment of your 24-hour listening distributions. It reflects when you listen (daily habits/routine) rather than what artists/tracks you listen to."
+                                            : `Catalog overlap (Jaccard): ${jaccardPct}% | Listening intensity (Cosine): ${cosinePct}%`
+                                    }>
                                         <div className="dim-header">
                                             <span className="dim-title-span">
-                                                {dim.icon} <strong>{dim.name}</strong> <span className="dim-weight">({dim.weight} weight)</span>
+                                                <strong>{dim.name}</strong> <span className="dim-weight">({dim.weight} weight)</span>
                                             </span>
-                                            <span className="dim-badge">{finalPercent}% Match</span>
+                                            <span className="dim-badge" style={{ cursor: 'help' }} title={
+                                                dim.name === 'Listening Rhythm'
+                                                    ? `Rhythm Match: ${finalPercent}% (Cosine Similarity of 24h distribution vector)`
+                                                    : `Catalog overlap (Jaccard): ${jaccardPct}%\nListening intensity (Cosine): ${cosinePct}%`
+                                            }>
+                                                {finalPercent}% Match ⓘ
+                                            </span>
                                         </div>
 
-                                        <div className="bar-group">
-                                            <div className="bar-label-container">
-                                                <span>Jaccard Index (Set Overlap)</span>
-                                                <span>{jaccardPct}%</span>
-                                            </div>
-                                            <div className="custom-progress-bg">
-                                                <div className="custom-progress-fill jaccard-fill" style={{ width: `${jaccardPct}%` }}></div>
-                                            </div>
-                                        </div>
-
-                                        <div className="bar-group">
-                                            <div className="bar-label-container">
-                                                <span>Cosine Similarity (Listening Intensity)</span>
-                                                <span>{cosinePct}%</span>
-                                            </div>
-                                            <div className="custom-progress-bg">
-                                                <div className="custom-progress-fill cosine-fill" style={{ width: `${cosinePct}%` }}></div>
-                                            </div>
+                                        <div className="custom-progress-bg">
+                                            <div className="custom-progress-fill cosine-fill" style={{ width: `${finalPercent}%`, background: 'linear-gradient(90deg, #1db954 0%, #10b981 100%)', boxShadow: 'none' }}></div>
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
+                        <p style={{ marginTop: '16px', fontSize: '12.5px', color: '#a8a8b8', fontStyle: 'italic', lineHeight: '1.4', background: 'rgba(255,255,255,0.01)', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid #1db954' }}>
+                            💡 <strong>Note on Listening Rhythm:</strong> This metric compares your hourly routines (24-hour play patterns) using Cosine Similarity. Unlike catalog overlaps (Artists/Tracks) which is typically low, two users who listen during similar hours (e.g. work hours or commuting) will have a high Rhythm match regardless of their library content.
+                        </p>
                     </div>
 
                     {/* Genre Compass - 3 Columns Layout */}
                     <div className="genre-compass-container">
-                        <h4 className="section-title">🗺️ Genre Compass (Comparative Analysis)</h4>
+                        <h4 className="section-title">Genre Compass (Comparative Analysis)</h4>
                         <p className="section-subtitle">Comparing the macro-styles of your libraries to find common trends and personal uniqueness.</p>
                         <div className="genre-compass-grid">
                             {/* Column 1: Only Me */}
@@ -279,7 +271,7 @@ function SocialPage() {
                     {/* Common Artists and Tracks Side-by-side */}
                     <div className="common-items-container" style={{ marginTop: '32px' }}>
                         <div className="common-section">
-                            <h4>🤝 Shared Artists (Top Catalog)</h4>
+                            <h4>Shared Artists (Top Catalog)</h4>
                             {comparison.commonArtists && comparison.commonArtists.length > 0 ? (
                                 <ul>
                                     {comparison.commonArtists.map((artist, idx) => (
@@ -292,7 +284,7 @@ function SocialPage() {
                         </div>
 
                         <div className="common-section">
-                            <h4>🎵 Shared Tracks (Top Listenings)</h4>
+                            <h4>Shared Tracks (Top Listenings)</h4>
                             {comparison.commonTracks && comparison.commonTracks.length > 0 ? (
                                 <ul>
                                     {comparison.commonTracks.map((track, idx) => (
@@ -309,7 +301,7 @@ function SocialPage() {
                     {comparison.recommendations && comparison.recommendations.length > 0 && (
                         <div className="common-section recommendations-card" style={{ marginTop: '32px', width: '100%', maxWidth: '800px', margin: '32px auto 0 auto' }}>
                             <h4 style={{ color: '#1db954', borderBottom: '1px solid rgba(29, 185, 84, 0.2)', paddingBottom: '8px', marginBottom: '12px' }}>
-                                💡 Recommended for You (from your friend's DNA)
+                                Recommended for You (from your friend's DNA)
                             </h4>
                             <p style={{ color: '#a3a3a3', fontSize: '13px', marginBottom: '12px' }}>
                                 Based on Item-Based Collaborative Filtering, here are popular tracks in {comparison.user2Name}'s profile that you haven't discovered yet:
@@ -317,7 +309,7 @@ function SocialPage() {
                             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 {comparison.recommendations.map((rec, idx) => (
                                     <li key={`rec-${idx}`} style={{ background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '8px', fontSize: '14px', borderLeft: '3px solid #1db954', display: 'flex', alignItems: 'center' }}>
-                                        🎵 {rec}
+                                        {rec}
                                     </li>
                                 ))}
                             </ul>

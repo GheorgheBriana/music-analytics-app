@@ -15,3 +15,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_top_genres_unique
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_listening_heatmap_unique
     ON dw.mv_listening_heatmap (original_user_id, day_of_week, hour);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_artist_stats_unique
+    ON dw.mv_artist_stats (artist_key);

@@ -24,8 +24,19 @@ export async function syncSpotify(userId) {
         headers: authHeaders(userId),
     });
     if (!res.ok) {
-        const txt = await res.text().catch(() => '');
-        throw new Error(txt || `Sync failed: ${res.status}`);
+        let errorMsg = `Sync failed: ${res.status}`;
+        try {
+            const data = await res.json();
+            if (data && data.message) {
+                errorMsg = data.message;
+            }
+        } catch (err) {
+            try {
+                const txt = await res.text();
+                if (txt) errorMsg = txt;
+            } catch (ignore) {}
+        }
+        throw new Error(errorMsg);
     }
     return res.json(); // { fetchedFromSpotify, alreadyExisted, added, message }
 }

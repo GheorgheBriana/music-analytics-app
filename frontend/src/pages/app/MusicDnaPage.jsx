@@ -7,11 +7,25 @@ const COLORS = ['#1DB954', '#8b5cf6', '#3b82f6', '#f59e0b', '#ec4899', '#14b8a6'
 const CustomizedContent = (props) => {
     const { depth, x, y, width, height, index, name, value } = props;
 
-    // Only render for depth 1 (the actual genres)
     if (depth !== 1) return null;
 
-    // If rectangle is too small, hide text but keep the rect for the tooltip
-    const showText = width > 50 && height > 30;
+    const showText = width >= 25 && height >= 15;
+    const showPlays = width >= 55 && height >= 42;
+
+    let fontSize = 12;
+    if (width < 60 || height < 35) fontSize = 9;
+    else if (width < 90 || height < 50) fontSize = 10;
+
+    let displayName = name;
+    if (showText) {
+        const charWidth = fontSize * 0.6;
+        const maxChars = Math.floor((width - 6) / charWidth);
+        if (maxChars < 3) {
+            displayName = name.substring(0, Math.max(1, maxChars));
+        } else if (name.length > maxChars) {
+            displayName = name.substring(0, Math.max(2, maxChars - 2)) + '..';
+        }
+    }
 
     return (
         <g>
@@ -27,32 +41,62 @@ const CustomizedContent = (props) => {
                 }}
             />
             {showText && (
-                <>
+                <g style={{ pointerEvents: 'none' }} stroke="none">
                     <text
                         x={x + width / 2}
-                        y={y + height / 2 - 5}
+                        y={showPlays ? y + height / 2 - 4 : y + height / 2 + 3}
                         textAnchor="middle"
-                        fill="#fff"
-                        fontSize={13}
-                        fontWeight="bold"
-                        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}
+                        fill="#ffffff"
+                        stroke="none"
+                        fontSize={fontSize}
+                        fontWeight="700"
+                        fontFamily="'Outfit', sans-serif"
                     >
-                        {name}
+                        {displayName}
                     </text>
-                    <text
-                        x={x + width / 2}
-                        y={y + height / 2 + 12}
-                        textAnchor="middle"
-                        fill="rgba(255,255,255,0.8)"
-                        fontSize={11}
-                        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}
-                    >
-                        {value} plays
-                    </text>
-                </>
+                    {showPlays && (
+                        <text
+                            x={x + width / 2}
+                            y={y + height / 2 + 12}
+                            textAnchor="middle"
+                            fill="rgba(255,255,255,0.85)"
+                            stroke="none"
+                            fontSize={fontSize - 1}
+                            fontWeight="500"
+                            fontFamily="'Outfit', sans-serif"
+                        >
+                            {value ? value.toLocaleString() : 0} plays
+                        </text>
+                    )}
+                </g>
             )}
         </g>
     );
+};
+
+const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        return (
+            <div style={{
+                backgroundColor: '#1e1e2e',
+                border: '1px solid rgba(255, 255, 255, 0.18)',
+                padding: '8px 14px',
+                borderRadius: '10px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+                color: '#ffffff',
+                pointerEvents: 'none'
+            }}>
+                <div style={{ fontWeight: 'bold', fontSize: '13px', textTransform: 'capitalize', color: '#1DB954', marginBottom: '2px' }}>
+                    {data.name}
+                </div>
+                <div style={{ fontSize: '12px', color: '#f1f5f9' }}>
+                    {data.size ? data.size.toLocaleString() : (data.value ? data.value.toLocaleString() : 0)} plays
+                </div>
+            </div>
+        );
+    }
+    return null;
 };
 
 function MusicDnaPage() {
@@ -61,7 +105,7 @@ function MusicDnaPage() {
     const [fallbackMessage, setFallbackMessage] = useState(null);
     const [loadingDna, setLoadingDna] = useState(true);
     const [loadingRecs, setLoadingRecs] = useState(false);
-    const [activeLevel, setActiveLevel] = useState('comfort');
+    const [activeLevel, setActiveLevel] = useState('balance');
     const [expandedIdx, setExpandedIdx] = useState(null);
     
     const activeUserId = localStorage.getItem('userId');
@@ -155,13 +199,9 @@ function MusicDnaPage() {
                             <Treemap
                                 data={genres}
                                 dataKey="size"
-                                stroke="#121212"
                                 content={<CustomizedContent />}
                             >
-                                <Tooltip 
-                                    contentStyle={{ backgroundColor: '#181824', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff' }}
-                                    formatter={(value, name) => [`${value} tracks listened`, name]}
-                                />
+                                <Tooltip content={<CustomTooltip />} />
                             </Treemap>
                         </ResponsiveContainer>
                     ) : (
@@ -175,62 +215,6 @@ function MusicDnaPage() {
                     <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#a8a8b8' }}>
                         Hybrid recommendations based on user similarity (Collaborative Filtering) with a fallback to your rising genres (Content-based from Evolution).
                     </p>
-
-                    {/* Level Selector Slider/Tabs */}
-                    <div style={{
-                        display: 'flex',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
-                        borderRadius: '30px',
-                        padding: '4px',
-                        marginBottom: '24px'
-                    }}>
-                        {[
-                            { id: 'comfort', label: 'Comfort' },
-                            { id: 'balance', label: 'Balance' },
-                            { id: 'adventure', label: 'Adventure' }
-                        ].map((level) => (
-                            <button
-                                key={level.id}
-                                onClick={() => handleLevelChange(level.id)}
-                                style={{
-                                    flex: 1,
-                                    border: 'none',
-                                    background: activeLevel === level.id ? '#1DB954' : 'transparent',
-                                    color: activeLevel === level.id ? '#fff' : '#aeb3c5',
-                                    padding: '8px 12px',
-                                    borderRadius: '20px',
-                                    fontSize: '13px',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.25s ease',
-                                    boxShadow: activeLevel === level.id ? '0 4px 12px rgba(29, 185, 84, 0.25)' : 'none'
-                                }}
-                            >
-                                {level.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Fallback status message */}
-                    {fallbackMessage && !loadingRecs && (
-                        <div style={{
-                            padding: '12px 16px',
-                            background: 'rgba(29, 185, 84, 0.08)',
-                            border: '1px solid rgba(29, 185, 84, 0.18)',
-                            borderRadius: '14px',
-                            fontSize: '12.5px',
-                            color: '#1DB954',
-                            marginBottom: '20px',
-                            display: 'flex',
-                            gap: '10px',
-                            alignItems: 'flex-start',
-                            lineHeight: '1.4'
-                        }}>
-                            <span style={{ fontSize: '15px' }}>✨</span>
-                            <div>{fallbackMessage}</div>
-                        </div>
-                    )}
 
                     {/* Recommendations list */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -253,18 +237,20 @@ function MusicDnaPage() {
                                             <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff', display: 'block', marginBottom: '2px' }}>
                                                 {rec.artistName}
                                             </span>
-                                            <span style={{ 
-                                                fontSize: '11px', 
-                                                fontWeight: 'bold', 
-                                                textTransform: 'uppercase', 
-                                                color: '#aeb3c5',
-                                                background: 'rgba(255, 255, 255, 0.05)',
-                                                padding: '2px 8px',
-                                                borderRadius: '6px',
-                                                border: '1px solid rgba(255, 255, 255, 0.05)'
-                                            }}>
-                                                {rec.genreName}
-                                            </span>
+                                            {rec.genreName && rec.genreName.toLowerCase() !== 'unknown' && (
+                                                <span style={{ 
+                                                    fontSize: '11px', 
+                                                    fontWeight: 'bold', 
+                                                    textTransform: 'uppercase', 
+                                                    color: '#aeb3c5',
+                                                    background: 'rgba(255, 255, 255, 0.05)',
+                                                    padding: '2px 8px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid rgba(255, 255, 255, 0.05)'
+                                                }}>
+                                                    {rec.genreName}
+                                                </span>
+                                            )}
                                         </div>
                                         <button 
                                             onClick={() => toggleExplanation(index)}

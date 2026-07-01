@@ -17,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.OffsetDateTime;
 import java.util.*;
 
+import org.springframework.cache.CacheManager;
+
 @Service
 public class SpotifyLinkService {
 
@@ -25,17 +27,20 @@ public class SpotifyLinkService {
     private final TrackService trackService;
     private final JdbcTemplate jdbcTemplate;
     private final AnalyticsRefreshService analyticsRefreshService;
+    private final CacheManager cacheManager;
 
     public SpotifyLinkService(AppUserRepository appUserRepository,
                               ListeningRecordRepository listeningRecordRepository,
                               TrackService trackService,
                               JdbcTemplate jdbcTemplate,
-                              AnalyticsRefreshService analyticsRefreshService) {
+                              AnalyticsRefreshService analyticsRefreshService,
+                              CacheManager cacheManager) {
         this.appUserRepository = appUserRepository;
         this.listeningRecordRepository = listeningRecordRepository;
         this.trackService = trackService;
         this.jdbcTemplate = jdbcTemplate;
         this.analyticsRefreshService = analyticsRefreshService;
+        this.cacheManager = cacheManager;
     }
 
     /**
@@ -95,6 +100,14 @@ public class SpotifyLinkService {
                 analyticsRefreshService.refreshWarehouseForUser(userId, 10000);
             } catch (Exception e) {
                 // Log and continue - sync is still successful in OLTP
+            }
+            if (cacheManager != null) {
+                for (String cacheName : List.of("userStats", "dailyActivity", "periodStats", "evolution", "discovery")) {
+                    org.springframework.cache.Cache cache = cacheManager.getCache(cacheName);
+                    if (cache != null) {
+                        cache.clear();
+                    }
+                }
             }
         }
 
