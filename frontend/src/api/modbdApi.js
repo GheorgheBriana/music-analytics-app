@@ -77,5 +77,20 @@ export const modbdApi = {
         });
         if (!res.ok) throw new Error('Failed to create listening record');
         return res.json();
+    },
+
+    getValidation: async () => {
+        const res = await fetch(`${BASE_URL}/validation`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch validation status');
+        return res.json();
+    },
+
+    syncGenres: async () => {
+        const res = await fetch(`${BASE_URL}/genres/sync`, {
+            method: 'POST',
+            headers: getHeaders()
+        });
+        if (!res.ok) throw new Error('Failed to sync genres');
+        return res.json();
     }
 };

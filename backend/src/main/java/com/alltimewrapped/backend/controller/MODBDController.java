@@ -116,6 +116,7 @@ public class MODBDController {
     @DeleteMapping("/genres/{id}")
     @Transactional
     public Map<String, Object> deleteGenre(@PathVariable Long id) {
+        Map<String, Object> response = new HashMap<>();
         try {
             // Obținem numele genului pentru a ne asigura că este gen de test/demo (modbd- sau test-)
             String name = jdbcTemplate.queryForObject("SELECT name FROM oltp.genres WHERE id = ?", String.class, id);
@@ -126,14 +127,18 @@ public class MODBDController {
                 // Ștergem înregistrarea principală (AFTER trigger va propaga ștergerea pe nodul EU sau replica locală)
                 String sql = "DELETE FROM oltp.genres WHERE id = ?";
                 jdbcTemplate.update(sql, id);
+                
+                response.put("success", true);
+                response.put("message", "Genre deleted and replication updated trans-server.");
+            } else {
+                response.put("success", false);
+                response.put("message", "Only genres starting with 'modbd-' or 'test-' can be deleted for safety.");
             }
         } catch (Exception e) {
-            // Ignorăm sau gestionăm controlat
+            org.springframework.transaction.interceptor.TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            response.put("success", false);
+            response.put("message", "Error deleting genre: " + e.getMessage());
         }
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Genre deleted and replication updated trans-server.");
         return response;
     }
 
@@ -202,6 +207,202 @@ public class MODBDController {
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", "Record routed transparently based on region: " + region);
+        return response;
+    }
+
+    // ==========================================
+    // SECTIUNEA 5: VALIDARE INTEGRITATE ȘI SEED
+    // ==========================================
+
+    @GetMapping("/validation")
+    public Map<String, Object> getValidation() {
+        Map<String, Object> result = new HashMap<>();
+
+        // 1. Starea nodului Europa
+        boolean europeOnline = false;
+        try {
+            jdbcTemplate.queryForObject("SELECT 1 FROM oltp_eu_link.genres LIMIT 1", Integer.class);
+            europeOnline = true;
+        } catch (Exception e) {
+            // Offline or link error
+        }
+        result.put("europeNodeOnline", europeOnline);
+
+        // 2. Fragmentare verticală completă
+        int totalUsers = 0;
+        int secCount = 0;
+        int dataCount = 0;
+        int missingVertical = 0;
+        try {
+            totalUsers = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oltp.app_users", Integer.class);
+            secCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oltp.user_profile_sec", Integer.class);
+            dataCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oltp.user_profile_data", Integer.class);
+            String sqlVertical = "SELECT COUNT(*) FROM oltp.app_users WHERE id NOT IN (SELECT user_id FROM oltp.user_profile_sec) OR id NOT IN (SELECT user_id FROM oltp.user_profile_data)";
+            missingVertical = jdbcTemplate.queryForObject(sqlVertical, Integer.class);
+        } catch (Exception e) {
+            // Handle error
+        }
+
+        Map<String, Object> vertical = new HashMap<>();
+        vertical.put("status", missingVertical == 0 ? "PASS" : "FAIL");
+        vertical.put("totalUsers", totalUsers);
+        vertical.put("secCount", secCount);
+        vertical.put("dataCount", dataCount);
+        vertical.put("missingCount", missingVertical);
+        result.put("verticalCompleteness", vertical);
+
+        // 3. Reconstrucție orizontală corectă (prin view-ul global)
+        Map<String, Object> reconstruction = new HashMap<>();
+        if (europeOnline) {
+            try {
+                int amCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oltp.listening_records_am", Integer.class);
+                int euCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oltp_eu_link.listening_records_eu", Integer.class);
+                int globalCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oltp.v_listening_records_global", Integer.class);
+                reconstruction.put("status", (globalCount == amCount + euCount) ? "PASS" : "FAIL");
+                reconstruction.put("amCount", amCount);
+                reconstruction.put("euCount", euCount);
+                reconstruction.put("globalCount", globalCount);
+            } catch (Exception e) {
+                reconstruction.put("status", "FAIL");
+            }
+        } else {
+            try {
+                int amCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oltp.listening_records_am", Integer.class);
+                reconstruction.put("status", "UNAVAILABLE");
+                reconstruction.put("amCount", amCount);
+                reconstruction.put("euCount", -1);
+                reconstruction.put("globalCount", -1);
+            } catch (Exception e) {
+                reconstruction.put("status", "FAIL");
+            }
+        }
+        result.put("horizontalReconstruction", reconstruction);
+
+        // 4. Disjuncția fragmentelor
+        Map<String, Object> disjunction = new HashMap<>();
+        if (europeOnline) {
+            try {
+                String sqlDisjunction = "SELECT COUNT(*) FROM oltp.listening_records_am am " +
+                        "JOIN oltp_eu_link.listening_records_eu eu ON " +
+                        "am.user_id = eu.user_id AND am.track_id = eu.track_id AND am.played_at = eu.played_at AND am.ms_played = eu.ms_played";
+                int overlapCount = jdbcTemplate.queryForObject(sqlDisjunction, Integer.class);
+                disjunction.put("status", overlapCount == 0 ? "PASS" : "FAIL");
+                disjunction.put("overlapCount", overlapCount);
+            } catch (Exception e) {
+                disjunction.put("status", "FAIL");
+            }
+        } else {
+            disjunction.put("status", "UNAVAILABLE");
+            disjunction.put("overlapCount", -1);
+        }
+        result.put("horizontalDisjunction", disjunction);
+
+        // 5. Regiuni corect rutate
+        Map<String, Object> routing = new HashMap<>();
+        try {
+            String sqlInvalidAm = "SELECT COUNT(*) FROM oltp.listening_records_am WHERE region IN ('RO', 'DE', 'FR', 'ES', 'IT', 'UK', 'EU')";
+            int invalidAmCount = jdbcTemplate.queryForObject(sqlInvalidAm, Integer.class);
+            routing.put("invalidAmCount", invalidAmCount);
+
+            if (europeOnline) {
+                String sqlInvalidEu = "SELECT COUNT(*) FROM oltp_eu_link.listening_records_eu WHERE region NOT IN ('RO', 'DE', 'FR', 'ES', 'IT', 'UK', 'EU')";
+                int invalidEuCount = jdbcTemplate.queryForObject(sqlInvalidEu, Integer.class);
+                routing.put("invalidEuCount", invalidEuCount);
+                routing.put("status", (invalidAmCount == 0 && invalidEuCount == 0) ? "PASS" : "FAIL");
+            } else {
+                routing.put("invalidEuCount", -1);
+                routing.put("status", invalidAmCount == 0 ? "PASS" : "FAIL");
+            }
+        } catch (Exception e) {
+            routing.put("status", "FAIL");
+        }
+        result.put("regionRouting", routing);
+
+        // 6. Consistența replicii genurilor (locală de fallback și remote Europa)
+        Map<String, Object> genresRep = new HashMap<>();
+        try {
+            String sqlLocalDiff1 = "SELECT COUNT(*) FROM (SELECT id, name FROM oltp.genres EXCEPT SELECT id, name FROM oltp.genres_replica) AS diff";
+            String sqlLocalDiff2 = "SELECT COUNT(*) FROM (SELECT id, name FROM oltp.genres_replica EXCEPT SELECT id, name FROM oltp.genres) AS diff";
+            int localDiffCount = jdbcTemplate.queryForObject(sqlLocalDiff1, Integer.class) + jdbcTemplate.queryForObject(sqlLocalDiff2, Integer.class);
+            genresRep.put("localDiffCount", localDiffCount);
+
+            if (europeOnline) {
+                String sqlRemoteDiff1 = "SELECT COUNT(*) FROM (SELECT id, name FROM oltp.genres EXCEPT SELECT id, name FROM oltp_eu_link.genres) AS diff";
+                String sqlRemoteDiff2 = "SELECT COUNT(*) FROM (SELECT id, name FROM oltp_eu_link.genres EXCEPT SELECT id, name FROM oltp.genres) AS diff";
+                int remoteDiffCount = jdbcTemplate.queryForObject(sqlRemoteDiff1, Integer.class) + jdbcTemplate.queryForObject(sqlRemoteDiff2, Integer.class);
+                genresRep.put("remoteDiffCount", remoteDiffCount);
+                genresRep.put("status", (localDiffCount == 0 && remoteDiffCount == 0) ? "PASS" : "FAIL");
+            } else {
+                genresRep.put("remoteDiffCount", -1);
+                genresRep.put("status", localDiffCount == 0 ? "PASS" : "FAIL");
+            }
+        } catch (Exception e) {
+            genresRep.put("status", "FAIL");
+        }
+        result.put("genreReplication", genresRep);
+
+        return result;
+    }
+
+    @PostMapping("/genres/sync")
+    @Transactional
+    public Map<String, Object> syncGenres() {
+        Map<String, Object> response = new HashMap<>();
+        boolean localSuccess = false;
+        boolean remoteSuccess = false;
+        String message = "";
+
+        try {
+            // Sincronizare locală genres_replica (upsert)
+            jdbcTemplate.update("INSERT INTO oltp.genres_replica (id, name) " +
+                    "SELECT id, name FROM oltp.genres " +
+                    "ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name");
+            // Ștergere genuri orfane (local)
+            jdbcTemplate.update("DELETE FROM oltp.genres_replica WHERE id NOT IN (SELECT id FROM oltp.genres)");
+            localSuccess = true;
+            message += "Replică locală de fallback sincronizată. ";
+        } catch (Exception e) {
+            message += "Eroare replică locală: " + e.getMessage() + ". ";
+        }
+
+        // Sincronizare remote (EU)
+        boolean europeOnline = false;
+        try {
+            jdbcTemplate.queryForObject("SELECT 1 FROM oltp_eu_link.genres LIMIT 1", Integer.class);
+            europeOnline = true;
+        } catch (Exception e) {
+            // Offline
+        }
+
+        if (europeOnline) {
+            try {
+                // Sincronizare remote Europa (UPDATE pentru înregistrările modificate)
+                jdbcTemplate.update("UPDATE oltp_eu_link.genres target " +
+                        "SET name = source.name, " +
+                        "    replicated_from_am = CURRENT_TIMESTAMP " +
+                        "FROM oltp.genres source " +
+                        "WHERE target.id = source.id AND target.name <> source.name");
+
+                // Sincronizare remote Europa (INSERT pentru înregistrările noi)
+                jdbcTemplate.update("INSERT INTO oltp_eu_link.genres (id, name) " +
+                        "SELECT source.id, source.name FROM oltp.genres source " +
+                        "WHERE source.id NOT IN (SELECT id FROM oltp_eu_link.genres)");
+
+                // Ștergere genuri orfane (Europa)
+                jdbcTemplate.update("DELETE FROM oltp_eu_link.genres WHERE id NOT IN (SELECT id FROM oltp.genres)");
+                remoteSuccess = true;
+                message += "Replica Europa sincronizată.";
+            } catch (Exception e) {
+                message += "Eroare replica Europa: " + e.getMessage() + ".";
+            }
+        } else {
+            message += "Nodul Europa este Offline, s-a omis sincronizarea remote.";
+        }
+
+        response.put("success", localSuccess);
+        response.put("europeOnline", europeOnline);
+        response.put("remoteSuccess", remoteSuccess);
+        response.put("message", message);
         return response;
     }
 }

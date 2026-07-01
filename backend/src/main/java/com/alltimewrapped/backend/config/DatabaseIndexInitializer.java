@@ -82,6 +82,32 @@ public class DatabaseIndexInitializer implements ApplicationListener<Application
             );
             log.info("[DB INITIALIZER] Backfilled {} fact records with fallback completion rate.", updatedFacts);
 
+            // 7. Initialize MODBD new user trigger (Vertical Completeness verification helper)
+            log.info("[DB INITIALIZER] Registering new user profile creation trigger for MODBD vertical completeness...");
+            jdbcTemplate.execute(
+                "CREATE OR REPLACE FUNCTION oltp.fn_create_user_profiles() " +
+                "RETURNS TRIGGER AS $$ " +
+                "BEGIN " +
+                "    INSERT INTO oltp.user_profile_sec (user_id) VALUES (NEW.id) ON CONFLICT (user_id) DO NOTHING; " +
+                "    INSERT INTO oltp.user_profile_data (user_id) VALUES (NEW.id) ON CONFLICT (user_id) DO NOTHING; " +
+                "    RETURN NEW; " +
+                "END; " +
+                "$$ LANGUAGE plpgsql;"
+            );
+            jdbcTemplate.execute("DROP TRIGGER IF EXISTS trg_create_user_profiles ON oltp.app_users");
+            jdbcTemplate.execute(
+                "CREATE TRIGGER trg_create_user_profiles " +
+                "AFTER INSERT ON oltp.app_users " +
+                "FOR EACH ROW EXECUTE FUNCTION oltp.fn_create_user_profiles()"
+            );
+            log.info("[DB INITIALIZER] MODBD new user profile trigger created successfully.");
+
+            // Backfill existing users who don't have profile fragments
+            log.info("[DB INITIALIZER] Running backfill for MODBD profile fragments...");
+            jdbcTemplate.update("INSERT INTO oltp.user_profile_sec (user_id) SELECT id FROM oltp.app_users ON CONFLICT (user_id) DO NOTHING");
+            jdbcTemplate.update("INSERT INTO oltp.user_profile_data (user_id) SELECT id FROM oltp.app_users ON CONFLICT (user_id) DO NOTHING");
+            log.info("[DB INITIALIZER] MODBD profile fragments backfill completed.");
+
             log.info("[DB INITIALIZER] Performance indexes verified and created successfully in {} ms", System.currentTimeMillis() - start);
         } catch (Exception e) {
             log.error("[DB INITIALIZER] Error creating performance indexes: {}", e.getMessage(), e);
